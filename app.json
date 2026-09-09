@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "MockupApp",
-    "slug": "MockupApp",
+    "name": "UniStreak",
+    "slug": "UniStreak",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

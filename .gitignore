@@ -8,6 +8,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+.eas/
 
 # Native
 .kotlin/
@@ -30,8 +31,13 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Windows
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
