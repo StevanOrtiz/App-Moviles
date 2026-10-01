@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, Pressable } from 'react-native';
 import { COLORS } from '../theme';
 import { users as mockUsers, universities as mockUniversities } from '../data/mockData';
+import { getStudentRanking, getUniversityRanking } from '../services/rankingService';
 import LeaderboardItem from '../components/LeaderboardItem';
 import { getSessions } from '../utils/storage';
 import { getCurrentStreak } from '../utils/streak';
@@ -10,16 +11,23 @@ import { formatMinutes } from '../utils/formatTime';
 export default function RankingScreen({ user }) {
   const [tab, setTab] = useState('students');
   const [sessions, setSessions] = useState([]);
+  const [remoteUsers, setRemoteUsers] = useState(mockUsers);
+  const [remoteUniversities, setRemoteUniversities] = useState(mockUniversities);
 
   useEffect(() => {
     getSessions().then(setSessions);
+    (async () => {
+      const [students, unis] = await Promise.all([getStudentRanking(), getUniversityRanking()]);
+      setRemoteUsers(students);
+      setRemoteUniversities(unis);
+    })();
   }, []);
 
   const myTotalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
   const myStreak = getCurrentStreak(sessions);
 
   const students = [
-    ...mockUsers,
+    ...remoteUsers,
     {
       id: 'me',
       name: user?.name || 'Tú',
@@ -31,7 +39,7 @@ export default function RankingScreen({ user }) {
     },
   ].sort((a, b) => b.totalMinutes - a.totalMinutes);
 
-  const universitiesRanked = [...mockUniversities].sort(
+  const universitiesRanked = [...remoteUniversities].sort(
     (a, b) => b.totalMinutes - a.totalMinutes
   );
   const topUniversity = universitiesRanked[0];

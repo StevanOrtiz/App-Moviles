@@ -7,6 +7,7 @@ import SessionItem from '../components/SessionItem';
 import PrimaryButton from '../components/PrimaryButton';
 import { COLORS } from '../theme';
 import { getSessions, saveSessions } from '../utils/storage';
+import { syncSession } from '../services/sessionService';
 import { getCurrentStreak, getWeekIndicator } from '../utils/streak';
 import { formatMinutes, todayISO, formatClockTime } from '../utils/formatTime';
 
@@ -44,6 +45,7 @@ export default function HomeScreen({ user }) {
       saveSessions(updated);
       return updated;
     });
+    syncSession(newSession);
 
     setModalVisible(true);
   }, []);

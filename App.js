@@ -9,6 +9,7 @@ import CreateProfileScreen from './src/screens/CreateProfileScreen';
 import AppNavigator from './src/navigation/AppNavigator';
 import { getOnboarding, getUser } from './src/utils/storage';
 import { COLORS } from './src/theme';
+import { initAnalytics } from './src/config/firebase';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,7 @@ export default function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    initAnalytics().catch(() => {});
     (async () => {
       const [onboarded, savedUser] = await Promise.all([getOnboarding(), getUser()]);
       setOnboardingCompleted(onboarded);
