@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from '../components/PrimaryButton';
 import { COLORS } from '../theme';
 import { UNIVERSITIES } from '../data/mockData';
-import { saveUser } from '../utils/storage';
+import { saveUserProfile } from '../services/userService';
 
 export default function CreateProfileScreen({ initialUser, onSaved }) {
   const [name, setName] = useState(initialUser?.name || '');
@@ -24,7 +24,7 @@ export default function CreateProfileScreen({ initialUser, onSaved }) {
   const handleSave = async () => {
     if (!canSave) return;
     const user = { name: name.trim(), university };
-    await saveUser(user);
+    await saveUserProfile(user);
     onSaved(user);
   };
 
