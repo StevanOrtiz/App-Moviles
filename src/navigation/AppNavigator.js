@@ -16,7 +16,7 @@ const ICONS = {
   Perfil: 'person',
 };
 
-export default function AppNavigator({ user, onUserUpdated }) {
+export default function AppNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -43,12 +43,10 @@ export default function AppNavigator({ user, onUserUpdated }) {
         ),
       })}
     >
-      <Tab.Screen name="Inicio">{() => <HomeScreen user={user} />}</Tab.Screen>
-      <Tab.Screen name="Ranking">{() => <RankingScreen user={user} />}</Tab.Screen>
+      <Tab.Screen name="Inicio" component={HomeScreen} />
+      <Tab.Screen name="Ranking" component={RankingScreen} />
       <Tab.Screen name="Historial" component={HistoryScreen} />
-      <Tab.Screen name="Perfil">
-        {() => <ProfileScreen user={user} onUserUpdated={onUserUpdated} />}
-      </Tab.Screen>
+      <Tab.Screen name="Perfil" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

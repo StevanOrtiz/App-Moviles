@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, Modal } from 'react-native';
 import StreakCard from '../components/StreakCard';
 import PomodoroTimer from '../components/PomodoroTimer';
@@ -6,8 +6,8 @@ import StatCard from '../components/StatCard';
 import SessionItem from '../components/SessionItem';
 import PrimaryButton from '../components/PrimaryButton';
 import { COLORS } from '../theme';
-import { getSessions, saveSessions } from '../utils/storage';
-import { syncSession } from '../services/sessionService';
+import { useAuth } from '../context/AuthContext';
+import { useSessions } from '../context/SessionsContext';
 import { getCurrentStreak, getWeekIndicator } from '../utils/streak';
 import { formatMinutes, todayISO, formatClockTime } from '../utils/formatTime';
 
@@ -20,15 +20,12 @@ function getGreeting() {
   return 'Buenas noches';
 }
 
-export default function HomeScreen({ user }) {
-  const [sessions, setSessions] = useState([]);
+export default function HomeScreen() {
+  const { profile: user } = useAuth();
+  const { sessions, addSession } = useSessions();
   const [timer, setTimer] = useState(DURATION);
   const [isRunning, setIsRunning] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-
-  useEffect(() => {
-    getSessions().then(setSessions);
-  }, []);
 
   const handleComplete = useCallback(() => {
     const now = new Date();
@@ -40,15 +37,9 @@ export default function HomeScreen({ user }) {
       time: formatClockTime(now),
     };
 
-    setSessions((prev) => {
-      const updated = [...prev, newSession];
-      saveSessions(updated);
-      return updated;
-    });
-    syncSession(newSession);
-
+    addSession(newSession);
     setModalVisible(true);
-  }, []);
+  }, [addSession]);
 
   const handleContinue = () => {
     setModalVisible(false);
@@ -120,7 +111,11 @@ export default function HomeScreen({ user }) {
             <Text style={styles.modalTitle}>¡Sesión completada! 🎉</Text>
             <Text style={styles.modalBody}>Has estudiado durante 25 minutos.</Text>
             <Text style={styles.modalStreak}>🔥 Tu racha continúa</Text>
-            <PrimaryButton title="Continuar" onPress={handleContinue} accessibilityLabel="Continuar" />
+            <PrimaryButton
+              title="Continuar"
+              onPress={handleContinue}
+              accessibilityLabel="Continuar"
+            />
           </View>
         </View>
       </Modal>

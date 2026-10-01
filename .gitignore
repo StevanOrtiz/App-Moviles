@@ -44,4 +44,5 @@ Thumbs.db
 
 # generated native folders
 /ios
-/android
+/androidfirestore-debug.log
+*-debug.log

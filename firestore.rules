@@ -1,0 +1,175 @@
+rules_version = '2';
+
+// Reglas de seguridad de UniStreak.
+// Pégalas en Firebase Console > Firestore Database > Reglas, o despliega con:
+//   npx firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Funciones auxiliares ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function sessionPath(uid, sessionId) {
+      return /databases/$(database)/documents/users/$(uid)/sessions/$(sessionId);
+    }
+
+    // Duración de la sesión que se crea en esta misma escritura; 0 si no hay una sesión nueva.
+    // Así los totales solo pueden subir lo que dura una sesión real, y una sola vez.
+    function newSessionDuration(uid, sessionId) {
+      return sessionId is string
+          && !exists(sessionPath(uid, sessionId))
+          && existsAfter(sessionPath(uid, sessionId))
+        ? getAfter(sessionPath(uid, sessionId)).data.duration
+        : 0;
+    }
+
+    // ---------- Usuarios: users/{uid} ----------
+    match /users/{uid} {
+      function keysOk(data) {
+        return data.keys().hasOnly([
+          'name', 'universityId', 'universityName',
+          'totalMinutes', 'sessions', 'currentStreak', 'bestStreak',
+          'lastSessionDate', 'lastSessionId', 'createdAt', 'updatedAt'
+        ]);
+      }
+
+      function profileOk(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 40
+          && data.universityId is string && data.universityId.size() > 0 && data.universityId.size() <= 40
+          && data.universityName is string && data.universityName.size() > 0 && data.universityName.size() <= 80;
+      }
+
+      // Editar perfil: solo nombre y universidad
+      function isProfileEdit() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'universityId', 'universityName', 'updatedAt']);
+      }
+
+      // Registrar sesión: los totales suben exactamente lo de la sesión nueva del mismo batch
+      function isSessionUpdate(uid) {
+        let after = request.resource.data;
+        let before = resource.data;
+        let minutes = newSessionDuration(uid, after.lastSessionId);
+        return after.diff(before).affectedKeys().hasOnly([
+            'totalMinutes', 'sessions', 'currentStreak', 'bestStreak',
+            'lastSessionDate', 'lastSessionId', 'updatedAt'
+          ])
+          && minutes > 0
+          && after.totalMinutes == before.totalMinutes + minutes
+          && after.sessions == before.sessions + 1
+          && after.currentStreak is int && after.currentStreak >= 0 && after.currentStreak <= after.sessions
+          && after.bestStreak is int && after.bestStreak >= before.bestStreak && after.bestStreak <= after.sessions
+          && after.lastSessionDate is string && after.lastSessionDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      }
+
+      // Cualquier usuario con sesión puede leer perfiles (necesario para el ranking).
+      // El correo no se guarda aquí, solo en Firebase Auth.
+      allow read: if signedIn();
+
+      allow create: if isOwner(uid)
+        && keysOk(request.resource.data)
+        && profileOk(request.resource.data)
+        && request.resource.data.totalMinutes == 0
+        && request.resource.data.sessions == 0
+        && request.resource.data.currentStreak == 0
+        && request.resource.data.bestStreak == 0
+        && request.resource.data.lastSessionDate == null
+        && request.resource.data.lastSessionId == null
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isOwner(uid)
+        && keysOk(request.resource.data)
+        && profileOk(request.resource.data)
+        && request.resource.data.updatedAt == request.time
+        && (isProfileEdit() || isSessionUpdate(uid));
+
+      allow delete: if isOwner(uid);
+
+      // ---------- Sesiones: users/{uid}/sessions/{sessionId} ----------
+      match /sessions/{sessionId} {
+        allow read: if isOwner(uid);
+
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['id', 'date', 'duration', 'type', 'time', 'createdAt'])
+          && request.resource.data.keys().hasAll(['id', 'date', 'duration', 'type', 'time', 'createdAt'])
+          && sessionId.size() <= 40
+          && request.resource.data.id == sessionId
+          && request.resource.data.date is string
+          && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.duration is int
+          && request.resource.data.duration > 0
+          && request.resource.data.duration <= 60
+          && request.resource.data.type == 'pomodoro'
+          && request.resource.data.time is string
+          && request.resource.data.time.size() <= 10
+          && request.resource.data.createdAt == request.time
+          // Debe crearse junto con la actualización de totales del usuario
+          && getAfter(userPath(uid)).data.lastSessionId == sessionId;
+
+        // Las sesiones no se editan
+        allow update: if false;
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    // ---------- Universidades: universities/{universityId} ----------
+    match /universities/{universityId} {
+      function keysOk(data) {
+        return data.keys().hasOnly(['name', 'students', 'totalMinutes', 'updatedAt']);
+      }
+
+      // +1 si el usuario entra a esta universidad, -1 si sale (o borra su cuenta), 0 si no cambia
+      function studentsDelta() {
+        let path = userPath(request.auth.uid);
+        let wasHere = exists(path) && get(path).data.universityId == universityId;
+        let isHere = existsAfter(path) && getAfter(path).data.universityId == universityId;
+        return (isHere ? 1 : 0) - (wasHere ? 1 : 0);
+      }
+
+      // Minutos de la sesión nueva del usuario, si pertenece a esta universidad
+      function minutesDelta() {
+        let path = userPath(request.auth.uid);
+        return existsAfter(path) && getAfter(path).data.universityId == universityId
+          ? newSessionDuration(request.auth.uid, getAfter(path).data.lastSessionId)
+          : 0;
+      }
+
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && keysOk(request.resource.data)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.students == studentsDelta()
+        && request.resource.data.students >= 0
+        && request.resource.data.totalMinutes == minutesDelta()
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if signedIn()
+        && keysOk(request.resource.data)
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.students == resource.data.students + studentsDelta()
+        && request.resource.data.totalMinutes == resource.data.totalMinutes + minutesDelta()
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+    }
+
+    // ---------- Todo lo demás: bloqueado ----------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,21 +11,48 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from '../components/PrimaryButton';
 import { COLORS } from '../theme';
-import { UNIVERSITIES } from '../data/mockData';
-import { saveUserProfile } from '../services/userService';
+import { UNIVERSITIES, findUniversityByName } from '../data/universities';
+import { useAuth } from '../context/AuthContext';
+import { createProfile, updateProfile } from '../services/userService';
+import { getLegacyData } from '../utils/storage';
+import { getErrorMessage } from '../utils/authErrors';
 
-export default function CreateProfileScreen({ initialUser, onSaved }) {
-  const [name, setName] = useState(initialUser?.name || '');
-  const [university, setUniversity] = useState(initialUser?.university || '');
+// Sin initialProfile: crea el perfil (después del registro). Con initialProfile: lo edita.
+export default function CreateProfileScreen({ initialProfile, onSaved, onCancel }) {
+  const { user, signOut } = useAuth();
+  const [name, setName] = useState(initialProfile?.name || '');
+  const [universityId, setUniversityId] = useState(initialProfile?.universityId || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const isEditing = !!initialUser;
-  const canSave = name.trim().length > 0 && university.length > 0;
+  const isEditing = !!initialProfile;
+  const canSave = name.trim().length > 0 && name.trim().length <= 40 && !!universityId && !saving;
+
+  // Rellena con el perfil de la versión anterior de la app, si existe
+  useEffect(() => {
+    if (isEditing) return;
+    getLegacyData().then(({ user: legacy }) => {
+      if (!legacy) return;
+      setName((current) => current || legacy.name || '');
+      const university = findUniversityByName(legacy.university);
+      if (university) setUniversityId((current) => current || university.id);
+    });
+  }, [isEditing]);
 
   const handleSave = async () => {
     if (!canSave) return;
-    const user = { name: name.trim(), university };
-    await saveUserProfile(user);
-    onSaved(user);
+    setSaving(true);
+    setError('');
+    try {
+      const data = { name: name.trim(), universityId };
+      if (isEditing) await updateProfile(user.uid, initialProfile, data);
+      else await createProfile(user.uid, data);
+      // Al crear, App.js avanza cuando Firestore confirma el perfil
+      if (onSaved) onSaved();
+    } catch (e) {
+      setError(getErrorMessage(e));
+      setSaving(false);
+    }
   };
 
   return (
@@ -40,37 +67,48 @@ export default function CreateProfileScreen({ initialUser, onSaved }) {
           placeholderTextColor={COLORS.textSecondary}
           value={name}
           onChangeText={setName}
+          maxLength={40}
           accessibilityLabel="Nombre"
         />
 
         <Text style={styles.fieldLabel}>¿Dónde estudias?</Text>
         <View style={styles.optionsWrap}>
           {UNIVERSITIES.map((option) => {
-            const selected = option === university;
+            const selected = option.id === universityId;
             return (
               <Pressable
-                key={option}
-                onPress={() => setUniversity(option)}
+                key={option.id}
+                onPress={() => setUniversityId(option.id)}
                 style={[styles.option, selected && styles.optionSelected]}
-                accessibilityLabel={option}
+                accessibilityLabel={option.name}
               >
                 <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
-                  {option}
+                  {option.name}
                 </Text>
-                {selected && (
-                  <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                )}
+                {selected && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
               </Pressable>
             );
           })}
         </View>
 
+        {!!error && <Text style={styles.error}>{error}</Text>}
+
         <PrimaryButton
-          title={isEditing ? 'Guardar cambios' : 'Crear perfil'}
+          title={saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear perfil'}
           onPress={handleSave}
           disabled={!canSave}
           accessibilityLabel={isEditing ? 'Guardar cambios' : 'Crear perfil'}
         />
+
+        <Pressable
+          style={styles.secondaryLink}
+          onPress={isEditing ? onCancel : signOut}
+          accessibilityLabel={isEditing ? 'Cancelar' : 'Usar otra cuenta'}
+        >
+          <Text style={styles.secondaryLinkText}>
+            {isEditing ? 'Cancelar' : 'Usar otra cuenta'}
+          </Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -129,5 +167,19 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     fontWeight: '700',
+  },
+  error: {
+    color: COLORS.error,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  secondaryLink: {
+    alignSelf: 'center',
+    paddingVertical: 16,
+  },
+  secondaryLinkText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });

@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../theme';
 import SessionItem from '../components/SessionItem';
 import SecondaryButton from '../components/SecondaryButton';
-import { getSessions } from '../utils/storage';
+import { useSessions } from '../context/SessionsContext';
 import { formatMinutes, todayISO } from '../utils/formatTime';
 
 function dateLabel(dateStr, today) {
@@ -14,13 +13,8 @@ function dateLabel(dateStr, today) {
 }
 
 export default function HistoryScreen({ navigation }) {
-  const [sessions, setSessions] = useState([]);
-
-  useFocusEffect(
-    useCallback(() => {
-      getSessions().then(setSessions);
-    }, [])
-  );
+  // Se sincronizan al iniciar sesión y al volver a la app (SessionsContext)
+  const { sessions } = useSessions();
 
   const today = todayISO();
 

@@ -5,7 +5,14 @@ import { formatMinutes } from '../utils/formatTime';
 
 const MEDALS = { 1: '🏆', 2: '🥈', 3: '🥉' };
 
-export default function LeaderboardItem({ position, name, subtitle, totalMinutes, streak, isCurrentUser }) {
+export default function LeaderboardItem({
+  position,
+  name,
+  subtitle,
+  totalMinutes,
+  streak,
+  isCurrentUser,
+}) {
   const isTop = position <= 3;
 
   return (
@@ -30,7 +37,11 @@ export default function LeaderboardItem({ position, name, subtitle, totalMinutes
 
       <View style={styles.metrics}>
         <Text style={styles.minutes}>{formatMinutes(totalMinutes)}</Text>
-        <Text style={styles.streak}>🔥 {streak} {streak === 1 ? 'día' : 'días'}</Text>
+        {streak !== undefined && (
+          <Text style={styles.streak}>
+            🔥 {streak} {streak === 1 ? 'día' : 'días'}
+          </Text>
+        )}
       </View>
     </View>
   );

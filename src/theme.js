@@ -6,4 +6,5 @@ export const COLORS = {
   textPrimary: '#123A36',
   textSecondary: '#7C8581',
   white: '#FFFFFF',
+  error: '#C0392B',
 };

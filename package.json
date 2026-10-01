@@ -7,6 +7,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/native": "^7.1.0",
+    "@react-navigation/native-stack": "^7.20.0",
     "expo": "~54.0.0",
     "expo-status-bar": "~3.0.9",
     "firebase": "^12.19.0",
@@ -19,7 +20,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-unistreak 'node --test tests/firestore.rules.test.mjs'"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase-tools": "^15.32.1"
+  }
 }

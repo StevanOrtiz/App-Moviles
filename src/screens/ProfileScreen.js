@@ -1,35 +1,52 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Pressable, Modal } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Pressable,
+  Modal,
+  TextInput,
+  Alert,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme';
 import CreateProfileScreen from './CreateProfileScreen';
-import { getSessions, getUser } from '../utils/storage';
+import { useAuth } from '../context/AuthContext';
+import { useSessions } from '../context/SessionsContext';
 import { getCurrentStreak } from '../utils/streak';
 import { formatMinutes } from '../utils/formatTime';
+import { getErrorMessage } from '../utils/authErrors';
 
-export default function ProfileScreen({ user, onUserUpdated }) {
-  const [sessions, setSessions] = useState([]);
-  const [editMode, setEditMode] = useState(null); // null | 'edit' | 'university'
-  const [configVisible, setConfigVisible] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      getSessions().then(setSessions);
-      getUser().then((u) => {
-        if (u) onUserUpdated(u);
-      });
-    }, [])
+function Option({ icon, label, onPress, danger }) {
+  const color = danger ? COLORS.error : COLORS.primary;
+  return (
+    <Pressable style={styles.option} onPress={onPress} accessibilityLabel={label}>
+      <Ionicons name={icon} size={20} color={color} />
+      <Text style={[styles.optionText, danger && { color }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
+    </Pressable>
   );
+}
+
+export default function ProfileScreen() {
+  const { user: authUser, profile: user, signOut, deleteAccount } = useAuth();
+  const { sessions, syncing } = useSessions();
+  const [editMode, setEditMode] = useState(false);
+  const [configVisible, setConfigVisible] = useState(false);
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [password, setPassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   if (editMode) {
     return (
       <CreateProfileScreen
-        initialUser={user}
-        onSaved={(updatedUser) => {
-          onUserUpdated(updatedUser);
-          setEditMode(null);
-        }}
+        initialProfile={user}
+        onSaved={() => setEditMode(false)}
+        onCancel={() => setEditMode(false)}
       />
     );
   }
@@ -37,6 +54,37 @@ export default function ProfileScreen({ user, onUserUpdated }) {
   const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
   const streak = getCurrentStreak(sessions);
   const initial = (user?.name || '?').trim().charAt(0).toUpperCase();
+
+  const handleSignOut = () => {
+    // Alert con botones no existe en web
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Quieres cerrar sesión en este dispositivo?')) signOut();
+      return;
+    }
+    Alert.alert('Cerrar sesión', '¿Quieres cerrar sesión en este dispositivo?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: () => signOut() },
+    ]);
+  };
+
+  const closeDelete = () => {
+    setDeleteVisible(false);
+    setPassword('');
+    setDeleteError('');
+  };
+
+  const handleDelete = async () => {
+    if (!password || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteAccount(password);
+      // onAuthStateChanged lleva de vuelta al inicio de sesión
+    } catch (e) {
+      setDeleteError(getErrorMessage(e));
+      setDeleting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -46,7 +94,8 @@ export default function ProfileScreen({ user, onUserUpdated }) {
         </View>
 
         <Text style={styles.name}>{user?.name}</Text>
-        <Text style={styles.university}>{user?.university}</Text>
+        <Text style={styles.university}>{user?.universityName}</Text>
+        <Text style={styles.email}>{authUser?.email}</Text>
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
@@ -64,23 +113,24 @@ export default function ProfileScreen({ user, onUserUpdated }) {
         </View>
 
         <View style={styles.optionsWrap}>
-          <Pressable style={styles.option} onPress={() => setEditMode('edit')} accessibilityLabel="Editar perfil">
-            <Ionicons name="create-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.optionText}>Editar perfil</Text>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
-          </Pressable>
-
-          <Pressable style={styles.option} onPress={() => setEditMode('university')} accessibilityLabel="Cambiar universidad">
-            <Ionicons name="school-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.optionText}>Cambiar universidad</Text>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
-          </Pressable>
-
-          <Pressable style={styles.option} onPress={() => setConfigVisible(true)} accessibilityLabel="Configuración">
-            <Ionicons name="settings-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.optionText}>Configuración</Text>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
-          </Pressable>
+          <Option icon="create-outline" label="Editar perfil" onPress={() => setEditMode(true)} />
+          <Option
+            icon="school-outline"
+            label="Cambiar universidad"
+            onPress={() => setEditMode(true)}
+          />
+          <Option
+            icon="settings-outline"
+            label="Configuración"
+            onPress={() => setConfigVisible(true)}
+          />
+          <Option icon="log-out-outline" label="Cerrar sesión" onPress={handleSignOut} />
+          <Option
+            icon="trash-outline"
+            label="Eliminar cuenta"
+            onPress={() => setDeleteVisible(true)}
+            danger
+          />
         </View>
       </ScrollView>
 
@@ -89,11 +139,45 @@ export default function ProfileScreen({ user, onUserUpdated }) {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Configuración</Text>
             <Text style={styles.modalBody}>
-              UniStreak funciona 100% sin conexión. Tus datos se guardan solo en este dispositivo.
+              Tus sesiones se guardan en tu cuenta y se sincronizan con la nube. Si estudias sin
+              conexión, se suben automáticamente cuando vuelvas a tener internet.
+              {syncing ? '\n\nSincronizando…' : ''}
             </Text>
             <Pressable style={styles.modalClose} onPress={() => setConfigVisible(false)}>
               <Text style={styles.modalCloseText}>Cerrar</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={deleteVisible} transparent animationType="fade" onRequestClose={closeDelete}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Eliminar cuenta</Text>
+            <Text style={styles.modalBody}>
+              Se borrarán tu perfil, tus sesiones y tu posición en el ranking. Esta acción no se
+              puede deshacer. Escribe tu contraseña para confirmar.
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Contraseña"
+              placeholderTextColor={COLORS.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              accessibilityLabel="Contraseña"
+            />
+            {!!deleteError && <Text style={styles.error}>{deleteError}</Text>}
+            <View style={styles.modalActions}>
+              <Pressable onPress={closeDelete} disabled={deleting}>
+                <Text style={styles.modalCloseText}>Cancelar</Text>
+              </Pressable>
+              <Pressable onPress={handleDelete} disabled={!password || deleting}>
+                <Text style={[styles.modalCloseText, { color: COLORS.error }]}>
+                  {deleting ? 'Eliminando…' : 'Eliminar'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -132,6 +216,11 @@ const styles = StyleSheet.create({
   },
   university: {
     fontSize: 15,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  email: {
+    fontSize: 13,
     color: COLORS.textSecondary,
     marginBottom: 20,
   },
@@ -203,6 +292,25 @@ const styles = StyleSheet.create({
   },
   modalClose: {
     alignSelf: 'flex-end',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 24,
+    marginTop: 8,
+  },
+  input: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    marginBottom: 8,
+  },
+  error: {
+    color: COLORS.error,
+    fontSize: 14,
+    marginBottom: 8,
   },
   modalCloseText: {
     fontSize: 15,
