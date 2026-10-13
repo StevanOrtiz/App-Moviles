@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import * as authService from '../services/authService';
 import { deleteUserData, subscribeToProfile } from '../services/userService';
+import { removeDeviceToken } from '../services/deviceService';
 import { clearUserCache, getCachedProfile, saveCachedProfile } from '../utils/storage';
 
 const AuthContext = createContext(null);
@@ -75,6 +76,18 @@ export function AuthProvider({ children }) {
     };
   }, [user]);
 
+  // Antes de cerrar sesión se quita el token de push de este dispositivo (necesita la sesión activa)
+  const signOut = useCallback(async () => {
+    if (user) {
+      try {
+        await removeDeviceToken(user.uid);
+      } catch (e) {
+        console.warn('No se pudo quitar el token de push:', e.message);
+      }
+    }
+    return authService.logOut();
+  }, [user]);
+
   const deleteAccount = useCallback(
     async (password) => {
       const current = await authService.reauthenticate(password);
@@ -95,10 +108,10 @@ export function AuthProvider({ children }) {
       signIn: authService.signIn,
       register: authService.register,
       resetPassword: authService.resetPassword,
-      signOut: authService.logOut,
+      signOut,
       deleteAccount,
     }),
-    [user, profile, profileStatus, authLoading, deleteAccount],
+    [user, profile, profileStatus, authLoading, signOut, deleteAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

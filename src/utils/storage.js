@@ -8,6 +8,8 @@ const KEYS = {
   profile: (uid) => `profile:${uid}`,
   sessions: (uid) => `sessions:${uid}`,
   outbox: (uid) => `outbox:${uid}`,
+  reminders: (uid) => `reminders:${uid}`,
+  pushToken: (uid) => `pushToken:${uid}`,
   // Claves de la versión sin cuenta (solo para migrar)
   LEGACY_USER: 'user',
   LEGACY_SESSIONS: 'sessions',
@@ -42,12 +44,24 @@ export const saveCachedSessions = (uid, sessions) => writeJson(KEYS.sessions(uid
 export const getOutbox = (uid) => readJson(KEYS.outbox(uid), []);
 export const saveOutbox = (uid, items) => writeJson(KEYS.outbox(uid), items);
 
+export const getCachedReminders = (uid) => readJson(KEYS.reminders(uid), null);
+export const saveCachedReminders = (uid, reminders) => writeJson(KEYS.reminders(uid), reminders);
+
+export const getCachedPushToken = (uid) => readJson(KEYS.pushToken(uid), null);
+export const saveCachedPushToken = (uid, token) => writeJson(KEYS.pushToken(uid), token);
+
 export const getCachedRanking = () => readJson(KEYS.RANKING, null);
 export const saveCachedRanking = (ranking) => writeJson(KEYS.RANKING, ranking);
 
 export async function clearUserCache(uid) {
   try {
-    await AsyncStorage.multiRemove([KEYS.profile(uid), KEYS.sessions(uid), KEYS.outbox(uid)]);
+    await AsyncStorage.multiRemove([
+      KEYS.profile(uid),
+      KEYS.sessions(uid),
+      KEYS.outbox(uid),
+      KEYS.reminders(uid),
+      KEYS.pushToken(uid),
+    ]);
   } catch (e) {
     // sin efecto: la caché se reescribe en el próximo inicio de sesión
   }

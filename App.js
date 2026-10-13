@@ -10,9 +10,16 @@ import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SessionsProvider } from './src/context/SessionsContext';
+import { RemindersProvider } from './src/context/RemindersContext';
+import { navigationRef } from './src/navigation/navigationRef';
+import useNotificationNavigation from './src/hooks/useNotificationNavigation';
+import { configureNotifications } from './src/services/notificationService';
 import { getOnboarding } from './src/utils/storage';
 import { COLORS } from './src/theme';
 import { initAnalytics } from './src/config/firebase';
+
+// Cómo se muestran las notificaciones con la app abierta (una sola vez)
+configureNotifications();
 
 function Loading() {
   return (
@@ -30,6 +37,9 @@ function RootNavigator() {
   useEffect(() => {
     getOnboarding().then(setOnboarding);
   }, []);
+
+  // Al tocar una notificación se abre la pantalla indicada (cuando ya está la navegación principal)
+  useNotificationNavigation(!!user && profileStatus === 'ready');
 
   if (loading || onboarding === null) return <Loading />;
   if (!onboarding) return <OnboardingScreen onFinish={() => setOnboarding(true)} />;
@@ -49,9 +59,11 @@ export default function App() {
       <StatusBar style="dark" />
       <AuthProvider>
         <SessionsProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
+          <RemindersProvider>
+            <NavigationContainer ref={navigationRef}>
+              <RootNavigator />
+            </NavigationContainer>
+          </RemindersProvider>
         </SessionsProvider>
       </AuthProvider>
     </SafeAreaProvider>
