@@ -122,21 +122,42 @@ service cloud.firestore {
         allow delete: if isOwner(uid);
       }
 
-      // ---------- Dispositivos para push: users/{uid}/devices/{deviceId} ----------
-      // Token de notificaciones push de cada teléfono del usuario. Solo lo ve su dueño.
-      match /devices/{deviceId} {
+      // ---------- Recordatorios: users/{uid}/reminders/{reminderId} ----------
+      match /reminders/{reminderId} {
+        function reminderOk(data) {
+          return data.keys().hasOnly(['title', 'hour', 'minute', 'days', 'enabled', 'createdAt', 'updatedAt'])
+            && data.keys().hasAll(['title', 'hour', 'minute', 'days', 'enabled', 'createdAt', 'updatedAt'])
+            && data.title is string && data.title.size() > 0 && data.title.size() <= 40
+            && data.hour is int && data.hour >= 0 && data.hour <= 23
+            && data.minute is int && data.minute >= 0 && data.minute <= 59
+            && data.days is list && data.days.size() >= 1 && data.days.size() <= 7
+            && data.days.hasOnly([1, 2, 3, 4, 5, 6, 7])
+            && data.enabled is bool
+            && data.updatedAt == request.time;
+        }
+
         allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && reminderOk(request.resource.data)
+          && request.resource.data.createdAt == request.time;
+        allow update: if isOwner(uid)
+          && reminderOk(request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(uid);
+      }
 
-        allow create, update: if isOwner(uid)
-          && deviceId.size() <= 200
-          && request.resource.data.keys().hasOnly(['token', 'platform', 'updatedAt'])
-          && request.resource.data.keys().hasAll(['token', 'platform', 'updatedAt'])
-          && request.resource.data.token is string
-          && request.resource.data.token.size() > 0
-          && request.resource.data.token.size() <= 200
-          && request.resource.data.platform in ['ios', 'android']
-          && request.resource.data.updatedAt == request.time;
+      // ---------- Dispositivos (token de push): users/{uid}/devices/{deviceId} ----------
+      match /devices/{deviceId} {
+        function deviceOk(data) {
+          return data.keys().hasOnly(['token', 'platform', 'updatedAt'])
+            && data.keys().hasAll(['token', 'platform', 'updatedAt'])
+            && data.token is string && data.token.size() > 0 && data.token.size() <= 200
+            && data.platform in ['android', 'ios']
+            && data.updatedAt == request.time;
+        }
 
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && deviceId.size() <= 200 && deviceOk(request.resource.data);
         allow delete: if isOwner(uid);
       }
     }

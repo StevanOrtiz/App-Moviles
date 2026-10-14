@@ -285,3 +285,60 @@ describe('dispositivos (push)', () => {
     await assertFails(setDoc(ref, device({ token: '' })));
   });
 });
+
+const reminderData = (overrides = {}) => ({
+  title: 'Hora de estudiar',
+  hour: 19,
+  minute: 30,
+  days: [2, 3, 4, 5, 6],
+  enabled: true,
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+  ...overrides,
+});
+
+describe('recordatorios', () => {
+  const ref = (db, id = 'r1') => doc(db, 'users', 'alice', 'reminders', id);
+
+  test('el dueño crea, lee, edita y borra su recordatorio', async () => {
+    const db = dbFor('alice');
+    await assertSucceeds(setDoc(ref(db), reminderData()));
+    assert.equal((await getDoc(ref(db))).data().hour, 19);
+    await assertSucceeds(updateDoc(ref(db), { enabled: false, updatedAt: serverTimestamp() }));
+    await assertSucceeds(
+      updateDoc(ref(db), { hour: 7, minute: 0, days: [1, 7], updatedAt: serverTimestamp() }),
+    );
+    await assertSucceeds(deleteDoc(ref(db)));
+  });
+
+  test('otro usuario no puede leer ni escribir mis recordatorios', async () => {
+    await assertSucceeds(setDoc(ref(dbFor('alice')), reminderData()));
+    const bob = dbFor('bob');
+    await assertFails(getDoc(ref(bob)));
+    await assertFails(setDoc(ref(bob, 'r2'), reminderData()));
+    await assertFails(deleteDoc(ref(bob)));
+  });
+
+  test('sin sesión no se puede leer ni escribir', async () => {
+    const anon = env.unauthenticatedContext().firestore();
+    await assertFails(setDoc(ref(anon), reminderData()));
+    await assertFails(getDoc(ref(anon)));
+  });
+
+  test('se rechazan hora, minuto, días y título inválidos', async () => {
+    const db = dbFor('alice');
+    await assertFails(setDoc(ref(db), reminderData({ hour: 24 })));
+    await assertFails(setDoc(ref(db), reminderData({ minute: 60 })));
+    await assertFails(setDoc(ref(db), reminderData({ days: [] })));
+    await assertFails(setDoc(ref(db), reminderData({ days: [0, 8] })));
+    await assertFails(setDoc(ref(db), reminderData({ title: '' })));
+    await assertFails(setDoc(ref(db), reminderData({ title: 'x'.repeat(41) })));
+    await assertFails(setDoc(ref(db), reminderData({ enabled: 'si' })));
+  });
+
+  test('se rechazan campos extra y fechas falsas', async () => {
+    const db = dbFor('alice');
+    await assertFails(setDoc(ref(db), reminderData({ admin: true })));
+    await assertFails(setDoc(ref(db), reminderData({ createdAt: new Date('2020-01-01') })));
+  });
+});

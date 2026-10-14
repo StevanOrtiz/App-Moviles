@@ -1,37 +1,34 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { useReminders } from './RemindersContext';
 import { useSessions } from './SessionsContext';
 import {
-  cancelReminders,
-  configureNotifications,
+  NOTIFICATIONS_SUPPORTED,
+  cancelStreakReminder,
   hasPermission,
-  notificationsSupported,
-  registerPushToken,
   requestPermission,
   scheduleStreakReminder,
-  unregisterPushToken,
 } from '../services/notificationService';
 import { getReminderPrefs, saveReminderPrefs } from '../utils/storage';
 
 const NotificationsContext = createContext(null);
 
+// Recordatorio de racha: un aviso a las 8:00 PM si el usuario aún no ha estudiado hoy.
+// (Los recordatorios de estudio y el token de push los maneja RemindersContext.)
 export function NotificationsProvider({ children }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { refreshPermission } = useReminders();
   const { sessions } = useSessions();
   const uid = user?.uid;
-  const [prefs, setPrefs] = useState({ enabled: false, pushToken: null });
+  const [prefs, setPrefs] = useState({ enabled: false });
   const [denied, setDenied] = useState(false);
-
-  useEffect(() => {
-    configureNotifications().catch((e) => console.warn('Notificaciones:', e.message));
-  }, []);
 
   // Carga la preferencia del usuario; si quitó el permiso desde Ajustes, la desactiva
   useEffect(() => {
     setDenied(false);
     if (!uid) {
-      setPrefs({ enabled: false, pushToken: null });
-      return;
+      setPrefs({ enabled: false });
+      return undefined;
     }
     let active = true;
     (async () => {
@@ -39,7 +36,7 @@ export function NotificationsProvider({ children }) {
       if (saved.enabled && !(await hasPermission())) {
         saved.enabled = false;
         await saveReminderPrefs(uid, saved);
-        await cancelReminders();
+        await cancelStreakReminder();
       }
       if (active) setPrefs(saved);
     })();
@@ -48,7 +45,12 @@ export function NotificationsProvider({ children }) {
     };
   }, [uid]);
 
-  // Reprograma el recordatorio cada vez que cambian las sesiones (p. ej. al terminar un Pomodoro)
+  // Al cerrar sesión se quita el aviso de racha de esa cuenta
+  useEffect(() => {
+    if (!authLoading && !uid) cancelStreakReminder();
+  }, [authLoading, uid]);
+
+  // Reprograma el aviso cada vez que cambian las sesiones (p. ej. al terminar un Pomodoro)
   useEffect(() => {
     if (!prefs.enabled) return;
     scheduleStreakReminder(sessions).catch((e) => console.warn('Recordatorio:', e.message));
@@ -60,32 +62,31 @@ export function NotificationsProvider({ children }) {
       setDenied(false);
 
       if (!enabled) {
-        await cancelReminders();
-        await unregisterPushToken(uid, prefs.pushToken);
-        const next = { enabled: false, pushToken: null };
+        await cancelStreakReminder();
+        const next = { enabled: false };
         await saveReminderPrefs(uid, next);
         setPrefs(next);
         return true;
       }
 
-      if (!(await requestPermission())) {
+      const result = await requestPermission();
+      await refreshPermission();
+      if (result.status !== 'granted') {
         setDenied(true);
         return false;
       }
-      const pushToken = await registerPushToken(uid);
-      const next = { enabled: true, pushToken };
+      const next = { enabled: true };
       await saveReminderPrefs(uid, next);
       setPrefs(next);
       return true;
     },
-    [uid, prefs.pushToken],
+    [uid, refreshPermission],
   );
 
   const value = useMemo(
     () => ({
-      supported: notificationsSupported,
+      supported: NOTIFICATIONS_SUPPORTED,
       enabled: prefs.enabled,
-      pushRegistered: !!prefs.pushToken,
       denied,
       setEnabled,
     }),

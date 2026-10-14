@@ -11,7 +11,7 @@
 | **Backend** | Firebase: Authentication (correo y contraseña) + Cloud Firestore |
 | **Modelo de datos** | Firestore es la fuente de verdad; el teléfono guarda una caché y una cola offline |
 
-Funciones: cuentas de usuario, temporizador Pomodoro, rachas diarias, historial, perfil y ranking de estudiantes y universidades.
+Funciones: cuentas de usuario, temporizador Pomodoro, rachas diarias, historial, perfil, ranking de estudiantes y universidades, y recordatorios de estudio con notificaciones.
 
 ## 2. Flujo de la app
 
@@ -19,7 +19,7 @@ Funciones: cuentas de usuario, temporizador Pomodoro, rachas diarias, historial,
 Onboarding (una vez por dispositivo)
   → Iniciar sesión / Crear cuenta / Recuperar contraseña
     → Crear perfil (nombre + universidad), solo la primera vez
-      → Tabs: Inicio · Ranking · Historial · Perfil
+      → Tabs: Inicio · Ranking · Historial · Recordatorios · Perfil
 ```
 
 - `App.js` decide la pantalla con `useAuth()`: ¿hay usuario en Firebase Auth? ¿existe `users/{uid}`?
@@ -36,6 +36,12 @@ users/{uid}                       ← perfil público (se usa en el ranking)
 
 users/{uid}/sessions/{sessionId}  ← historial privado
   id, date (YYYY-MM-DD), duration (min), type ("pomodoro"), time ("10:30 AM"), createdAt
+
+users/{uid}/reminders/{id}        ← recordatorios de estudio (privados)
+  title, hour (0-23), minute (0-59), days ([1..7], 1 = domingo), enabled, createdAt, updatedAt
+
+users/{uid}/devices/{deviceId}    ← token de push de cada dispositivo del usuario (privado)
+  token ("ExponentPushToken[...]"), platform ("android" | "ios"), updatedAt
 
 universities/{universityId}       ← totales por universidad
   name, students, totalMinutes, updatedAt
@@ -60,6 +66,8 @@ Las reglas solo aceptan los pasos 2 y 3 si en el mismo batch se crea una sesión
 | `profile:{uid}` | copia del perfil, para abrir la app sin red |
 | `sessions:{uid}` | copia de las sesiones del usuario |
 | `outbox:{uid}` | sesiones pendientes de subir |
+| `reminders:{uid}` | copia de los recordatorios, para mostrarlos sin red |
+| `pushToken:{uid}` | token de push de este dispositivo (para quitarlo al cerrar sesión) |
 | `ranking:cache` | último ranking descargado |
 
 Las claves `user` y `sessions` de la versión anterior (sin cuentas) se migran solas: el formulario de perfil se rellena con el usuario viejo y las sesiones se suben a la cuenta del primer usuario que inicia sesión en ese dispositivo.
@@ -122,3 +130,33 @@ Levanta el emulador de Firestore (requiere Java) y comprueba, entre otras cosas,
   - y/o **Cloud Functions**, que requieren el plan Blaze.
 - **Descarga del historial:** se descarga completo en cada sincronización. Con miles de sesiones convendría paginar o traer solo las nuevas.
 - **Publicar en tiendas:** falta configurar `android.package` e `ios.bundleIdentifier` en `app.json` y compilar con EAS Build.
+
+## 6. Notificaciones y recordatorios (`expo-notifications`)
+
+| Pieza | Archivo | Qué hace |
+|---|---|---|
+| Servicio | `src/services/notificationService.js` | Permisos, canal de Android, notificaciones locales, token de push |
+| Recordatorios | `src/services/reminderService.js` | CRUD en `users/{uid}/reminders` y escucha en tiempo real (`onSnapshot`) |
+| Dispositivos | `src/services/deviceService.js` | Guarda/borra el token en `users/{uid}/devices` |
+| Estado | `src/context/RemindersContext.js` | Une Firestore + permiso + notificaciones programadas |
+| Pantalla | `src/screens/RemindersScreen.js` | Tab **Recordatorios**: permiso, lista, crear/editar/borrar, probar aviso |
+| Navegación | `src/hooks/useNotificationNavigation.js` | Al tocar una notificación abre la pantalla de `data.screen` |
+
+**Flujo de un recordatorio**
+1. El usuario crea un recordatorio (mensaje, hora y días) → se guarda en Firestore.
+2. `RemindersContext` escucha la colección y, cuando hay permiso, deja programadas exactamente las notificaciones de los recordatorios activos (`DAILY` si son los 7 días, `WEEKLY` por cada día si no). Son locales: funcionan sin internet y con la app cerrada.
+3. Cambiar, apagar o borrar un recordatorio reprograma todo; en otro dispositivo con la misma cuenta se programan solos al abrir la app.
+4. Al cerrar sesión se cancelan las notificaciones y se borra el token de ese dispositivo.
+
+**Permisos** (3 estados: `undetermined`, `granted`, `denied`): se piden desde un botón con una explicación previa, nunca al abrir la app. Si el usuario los bloquea (`canAskAgain === false`) la pantalla ofrece **Abrir ajustes** y la app sigue funcionando.
+
+**Alarma del Pomodoro**: al iniciar el temporizador se programa una notificación para la hora de fin; se cancela al pausar, reiniciar o terminar. El tiempo restante se calcula contra la hora de fin, así que sigue correcto si la app estuvo en segundo plano. Con la app abierta no se muestra el aviso (ya sale la ventana "Sesión completada").
+
+**Push remotas (opcional)**: con permiso concedido, en un celular físico y con `extra.eas.projectId` configurado, se obtiene el Expo Push Token y se guarda en `users/{uid}/devices` (también se muestra en la pantalla para probarlo en https://expo.dev/notifications). Requiere un *development build* (no Expo Go) y, en Android, `google-services.json` + la llave FCM v1 subida con `eas credentials`. Un backend (p. ej. Cloud Functions) sería quien envíe los avisos; nunca se envían desde la app de otro usuario.
+
+**Dónde funciona cada cosa**
+
+| | Expo Go | Development build | Web |
+|---|---|---|---|
+| Notificaciones locales (recordatorios, alarma) | Sí | Sí | No |
+| Push remotas | No | Sí (celular físico) | No |

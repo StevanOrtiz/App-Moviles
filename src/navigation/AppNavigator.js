@@ -5,6 +5,7 @@ import { COLORS } from '../theme';
 import HomeScreen from '../screens/HomeScreen';
 import RankingScreen from '../screens/RankingScreen';
 import HistoryScreen from '../screens/HistoryScreen';
+import RemindersScreen from '../screens/RemindersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -13,6 +14,7 @@ const ICONS = {
   Inicio: 'home',
   Ranking: 'trophy',
   Historial: 'book',
+  Recordatorios: 'alarm',
   Perfil: 'person',
 };
 
@@ -46,6 +48,7 @@ export default function AppNavigator() {
       <Tab.Screen name="Inicio" component={HomeScreen} />
       <Tab.Screen name="Ranking" component={RankingScreen} />
       <Tab.Screen name="Historial" component={HistoryScreen} />
+      <Tab.Screen name="Recordatorios" component={RemindersScreen} />
       <Tab.Screen name="Perfil" component={ProfileScreen} />
     </Tab.Navigator>
   );

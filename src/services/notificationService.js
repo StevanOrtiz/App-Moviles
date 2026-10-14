@@ -2,106 +2,251 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import { getCurrentStreak } from '../utils/streak';
 import { nextReminderDate, reminderContent } from '../utils/reminder';
 
-const CHANNEL_ID = 'recordatorios';
+// Las notificaciones solo existen en Android e iOS (en web no se programan).
+export const NOTIFICATIONS_SUPPORTED = Platform.OS === 'android' || Platform.OS === 'ios';
 
-// expo-notifications no funciona en web
-export const notificationsSupported = Platform.OS !== 'web';
+export const CHANNEL_ID = 'default';
+const REMINDER_PREFIX = 'reminder_';
+const POMODORO_ALARM_ID = 'pomodoro_alarm';
+const STREAK_REMINDER_ID = 'streak_reminder';
 
-// Cómo se muestra una notificación cuando la app está abierta
-export async function configureNotifications() {
-  if (!notificationsSupported) return;
+// Pantallas a las que una notificación puede llevar al tocarla
+export const NOTIFICATION_SCREENS = ['Inicio', 'Recordatorios'];
+
+// Se configura una sola vez al abrir la app (App.js).
+// Con la app abierta se muestra el aviso, salvo el del Pomodoro: ahí la app ya
+// muestra su propia ventana de "Sesión completada".
+export function configureNotifications() {
+  if (!NOTIFICATIONS_SUPPORTED) return;
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
-  });
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: 'Recordatorios de racha',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      lightColor: '#65D889',
-    });
-  }
-}
-
-export async function hasPermission() {
-  if (!notificationsSupported) return false;
-  const { status } = await Notifications.getPermissionsAsync();
-  return status === 'granted';
-}
-
-// Pide el permiso solo cuando el usuario activa los recordatorios (no al abrir la app)
-export async function requestPermission() {
-  if (!notificationsSupported) return false;
-  if (await hasPermission()) return true;
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === 'granted';
-}
-
-// Un solo recordatorio pendiente a la vez: cada vez que cambian las sesiones se reprograma.
-export async function scheduleStreakReminder(sessions) {
-  if (!notificationsSupported) return;
-  await Notifications.cancelAllScheduledNotificationsAsync();
-  const { title, body } = reminderContent(getCurrentStreak(sessions));
-  await Notifications.scheduleNotificationAsync({
-    content: { title, body },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: nextReminderDate(sessions),
-      channelId: CHANNEL_ID,
+    handleNotification: async (notification) => {
+      const show = notification.request.content.data?.kind !== 'pomodoro';
+      return {
+        shouldPlaySound: show,
+        shouldSetBadge: false,
+        shouldShowBanner: show,
+        shouldShowList: show,
+      };
     },
   });
 }
 
-export async function cancelReminders() {
-  if (!notificationsSupported) return;
-  await Notifications.cancelAllScheduledNotificationsAsync();
+// Android 8+: cada notificación pertenece a un canal. Debe existir antes de pedir el permiso.
+async function ensureAndroidChannel() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+    name: 'Recordatorios de estudio',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#65D889',
+  });
 }
 
-// ---------- Push remoto (token del dispositivo en Firestore) ----------
-
-const deviceRef = (uid, token) =>
-  doc(db, 'users', uid, 'devices', token.replace(/[^A-Za-z0-9]/g, ''));
-
-function getProjectId() {
-  return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? null;
+// { status: 'undetermined' | 'granted' | 'denied' | 'unsupported', canAskAgain }
+export async function getPermission() {
+  if (!NOTIFICATIONS_SUPPORTED) return { status: 'unsupported', canAskAgain: false };
+  const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+  return { status, canAskAgain };
 }
 
-// Guarda el token de push en users/{uid}/devices/{id} para poder enviarle notificaciones remotas.
-// Devuelve el token, o null si este entorno no puede obtener uno (simulador, Expo Go en Android,
-// o proyecto sin projectId de EAS).
-export async function registerPushToken(uid) {
-  if (!notificationsSupported || !Device.isDevice) return null;
-  const projectId = getProjectId();
-  if (!projectId) return null;
+// Pide el permiso solo si hace falta. Si el sistema ya no deja preguntar
+// (canAskAgain === false) la pantalla ofrece ir a Ajustes.
+export async function requestPermission() {
+  if (!NOTIFICATIONS_SUPPORTED) return { status: 'unsupported', canAskAgain: false };
+  await ensureAndroidChannel();
+  const current = await Notifications.getPermissionsAsync();
+  if (current.status === 'granted' || !current.canAskAgain) {
+    return { status: current.status, canAskAgain: current.canAskAgain };
+  }
+  const next = await Notifications.requestPermissionsAsync();
+  return { status: next.status, canAskAgain: next.canAskAgain };
+}
 
+// Expo Push Token del dispositivo (null si no se puede obtener).
+// Las push remotas exigen un celular físico, un development build y el projectId de EAS.
+export async function registerForPushToken() {
+  if (!NOTIFICATIONS_SUPPORTED || !Device.isDevice) return null;
   try {
-    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-    await setDoc(deviceRef(uid, token), {
-      token,
-      platform: Platform.OS,
-      updatedAt: serverTimestamp(),
-    });
-    return token;
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return null;
+    await ensureAndroidChannel();
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) {
+      console.warn('Push remotas desactivadas: falta extra.eas.projectId (ejecuta "eas init").');
+      return null;
+    }
+    const token = await Notifications.getExpoPushTokenAsync({ projectId });
+    return token.data;
   } catch (e) {
-    console.warn('No se pudo registrar el token de push:', e.message);
+    // Expo Go en Android (SDK 53+) no soporta push remotas
+    console.warn('No se pudo obtener el token de push:', e.message);
     return null;
   }
 }
 
-export async function unregisterPushToken(uid, token) {
-  if (!token) return;
-  try {
-    await deleteDoc(deviceRef(uid, token));
-  } catch (e) {
-    console.warn('No se pudo borrar el token de push:', e.message);
+// ---------- Recordatorios de estudio (notificaciones locales repetitivas) ----------
+
+// Los días son números 1-7 con 1 = domingo (convención de expo-notifications).
+function reminderRequests(reminder) {
+  const content = {
+    title: reminder.title,
+    body: '¡Es hora de estudiar! Mantén tu racha 🔥',
+    sound: 'default',
+    data: { kind: 'reminder', reminderId: reminder.id, screen: 'Inicio' },
+  };
+  const { hour, minute } = reminder;
+  const everyDay = new Set(reminder.days).size === 7;
+
+  if (everyDay) {
+    return [
+      {
+        identifier: `${REMINDER_PREFIX}${reminder.id}_all`,
+        content,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+          channelId: CHANNEL_ID,
+        },
+      },
+    ];
   }
+  return reminder.days.map((weekday) => ({
+    identifier: `${REMINDER_PREFIX}${reminder.id}_${weekday}`,
+    content,
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday,
+      hour,
+      minute,
+      channelId: CHANNEL_ID,
+    },
+  }));
+}
+
+async function cancelReminderNotifications() {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter((n) => n.identifier.startsWith(REMINDER_PREFIX))
+      .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+  );
+}
+
+// Una sola sincronización a la vez para que dos cambios seguidos no se pisen
+let queue = Promise.resolve();
+
+function enqueue(task) {
+  queue = queue.then(task).catch((e) => console.warn('Notificaciones:', e.message));
+  return queue;
+}
+
+// Deja programadas exactamente las notificaciones de los recordatorios activos.
+export function syncReminderNotifications(reminders) {
+  if (!NOTIFICATIONS_SUPPORTED) return Promise.resolve();
+  return enqueue(async () => {
+    await cancelReminderNotifications();
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    await ensureAndroidChannel();
+    for (const reminder of reminders.filter((r) => r.enabled)) {
+      for (const request of reminderRequests(reminder)) {
+        await Notifications.scheduleNotificationAsync(request);
+      }
+    }
+  });
+}
+
+export function cancelAllReminderNotifications() {
+  if (!NOTIFICATIONS_SUPPORTED) return Promise.resolve();
+  return enqueue(cancelReminderNotifications);
+}
+
+// ---------- Recordatorio de racha (8:00 PM si aún no estudió hoy) ----------
+
+export async function hasPermission() {
+  const { status } = await getPermission();
+  return status === 'granted';
+}
+
+// Un solo recordatorio de racha pendiente: se reprograma cada vez que cambian las sesiones.
+// Solo toca su propia notificación; los recordatorios de estudio y la alarma siguen intactos.
+export function scheduleStreakReminder(sessions) {
+  if (!NOTIFICATIONS_SUPPORTED) return Promise.resolve();
+  return enqueue(async () => {
+    await Notifications.cancelScheduledNotificationAsync(STREAK_REMINDER_ID).catch(() => {});
+    if (!(await hasPermission())) return;
+    await ensureAndroidChannel();
+    const { title, body } = reminderContent(getCurrentStreak(sessions));
+    await Notifications.scheduleNotificationAsync({
+      identifier: STREAK_REMINDER_ID,
+      content: { title, body, sound: 'default', data: { kind: 'streak', screen: 'Inicio' } },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: nextReminderDate(sessions),
+        channelId: CHANNEL_ID,
+      },
+    });
+  });
+}
+
+export function cancelStreakReminder() {
+  if (!NOTIFICATIONS_SUPPORTED) return Promise.resolve();
+  return enqueue(() =>
+    Notifications.cancelScheduledNotificationAsync(STREAK_REMINDER_ID).catch(() => {}),
+  );
+}
+
+// ---------- Alarma del Pomodoro ----------
+
+// Avisa cuando termina el Pomodoro aunque la app esté en segundo plano.
+export async function schedulePomodoroAlarm(seconds) {
+  if (!NOTIFICATIONS_SUPPORTED || seconds < 1) return;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    await Notifications.scheduleNotificationAsync({
+      identifier: POMODORO_ALARM_ID,
+      content: {
+        title: '¡Pomodoro terminado! 🎉',
+        body: 'Completaste tu sesión de estudio. Tu racha sigue viva.',
+        sound: 'default',
+        data: { kind: 'pomodoro', screen: 'Inicio' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: Math.ceil(seconds),
+        channelId: CHANNEL_ID,
+      },
+    });
+  } catch (e) {
+    console.warn('No se pudo programar la alarma del Pomodoro:', e.message);
+  }
+}
+
+export async function cancelPomodoroAlarm() {
+  if (!NOTIFICATIONS_SUPPORTED) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(POMODORO_ALARM_ID);
+  } catch (e) {
+    // no había alarma programada
+  }
+}
+
+// Notificación inmediata para comprobar que todo funciona
+export async function sendTestNotification() {
+  if (!NOTIFICATIONS_SUPPORTED) return;
+  await ensureAndroidChannel();
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'UniStreak 🔥',
+      body: '¡Las notificaciones funcionan! Toca para abrir el inicio.',
+      sound: 'default',
+      data: { kind: 'test', screen: 'Inicio' },
+    },
+    trigger: null,
+  });
 }

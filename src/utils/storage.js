@@ -9,6 +9,8 @@ const KEYS = {
   sessions: (uid) => `sessions:${uid}`,
   outbox: (uid) => `outbox:${uid}`,
   reminders: (uid) => `reminders:${uid}`,
+  reminderList: (uid) => `reminderList:${uid}`,
+  pushToken: (uid) => `pushToken:${uid}`,
   // Claves de la versión sin cuenta (solo para migrar)
   LEGACY_USER: 'user',
   LEGACY_SESSIONS: 'sessions',
@@ -48,12 +50,27 @@ export const getReminderPrefs = (uid) =>
   readJson(KEYS.reminders(uid), { enabled: false, pushToken: null });
 export const saveReminderPrefs = (uid, prefs) => writeJson(KEYS.reminders(uid), prefs);
 
+// Copia local de los recordatorios de estudio (la fuente de verdad es Firestore)
+export const getCachedReminders = (uid) => readJson(KEYS.reminderList(uid), null);
+export const saveCachedReminders = (uid, reminders) => writeJson(KEYS.reminderList(uid), reminders);
+
+// Token de push de este dispositivo (para quitarlo de Firestore al cerrar sesión)
+export const getCachedPushToken = (uid) => readJson(KEYS.pushToken(uid), null);
+export const saveCachedPushToken = (uid, token) => writeJson(KEYS.pushToken(uid), token);
+
 export const getCachedRanking = () => readJson(KEYS.RANKING, null);
 export const saveCachedRanking = (ranking) => writeJson(KEYS.RANKING, ranking);
 
 export async function clearUserCache(uid) {
   try {
-    await AsyncStorage.multiRemove([KEYS.profile(uid), KEYS.sessions(uid), KEYS.outbox(uid), KEYS.reminders(uid)]);
+    await AsyncStorage.multiRemove([
+      KEYS.profile(uid),
+      KEYS.sessions(uid),
+      KEYS.outbox(uid),
+      KEYS.reminders(uid),
+      KEYS.reminderList(uid),
+      KEYS.pushToken(uid),
+    ]);
   } catch (e) {
     // sin efecto: la caché se reescribe en el próximo inicio de sesión
   }

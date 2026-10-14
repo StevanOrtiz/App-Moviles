@@ -1,34 +1,56 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, AppState } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme';
 import { formatClock } from '../utils/formatTime';
+import { cancelPomodoroAlarm, schedulePomodoroAlarm } from '../services/notificationService';
 
 const DURATION = 1500;
 
 export default function PomodoroTimer({ timer, setTimer, isRunning, setIsRunning, onComplete }) {
-  const intervalRef = useRef(null);
+  const timerRef = useRef(timer);
+  timerRef.current = timer;
 
+  // Alarma: avisa cuando termina el Pomodoro aunque la app esté en segundo plano
   useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        setTimer((prev) => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current);
-            setIsRunning(false);
-            onComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    if (!isRunning) return undefined;
+    schedulePomodoroAlarm(timerRef.current);
+    return () => {
+      cancelPomodoroAlarm();
+    };
+  }, [isRunning]);
+
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  // El tiempo restante se calcula contra la hora de fin (no restando 1 por segundo):
+  // así sigue correcto si la app pasó un rato en segundo plano.
+  useEffect(() => {
+    if (!isRunning) return undefined;
+
+    const endAt = Date.now() + timerRef.current * 1000;
+    let finished = false;
+    const tick = () => {
+      if (finished) return;
+      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      if (remaining > 0) {
+        setTimer(remaining);
+        return;
+      }
+      finished = true;
+      setTimer(0);
+      setIsRunning(false);
+      onCompleteRef.current();
+    };
+
+    const interval = setInterval(tick, 1000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') tick();
+    });
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      clearInterval(interval);
+      subscription.remove();
     };
   }, [isRunning]);
 
