@@ -10,6 +10,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SessionsProvider } from './src/context/SessionsContext';
+import { NotificationsProvider } from './src/context/NotificationsContext';
 import { getOnboarding } from './src/utils/storage';
 import { COLORS } from './src/theme';
 import { initAnalytics } from './src/config/firebase';
@@ -49,9 +50,11 @@ export default function App() {
       <StatusBar style="dark" />
       <AuthProvider>
         <SessionsProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
+          <NotificationsProvider>
+            <NavigationContainer>
+              <RootNavigator />
+            </NavigationContainer>
+          </NotificationsProvider>
         </SessionsProvider>
       </AuthProvider>
     </SafeAreaProvider>

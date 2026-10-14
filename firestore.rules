@@ -121,6 +121,24 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if isOwner(uid);
       }
+
+      // ---------- Dispositivos para push: users/{uid}/devices/{deviceId} ----------
+      // Token de notificaciones push de cada teléfono del usuario. Solo lo ve su dueño.
+      match /devices/{deviceId} {
+        allow read: if isOwner(uid);
+
+        allow create, update: if isOwner(uid)
+          && deviceId.size() <= 200
+          && request.resource.data.keys().hasOnly(['token', 'platform', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['token', 'platform', 'updatedAt'])
+          && request.resource.data.token is string
+          && request.resource.data.token.size() > 0
+          && request.resource.data.token.size() <= 200
+          && request.resource.data.platform in ['ios', 'android']
+          && request.resource.data.updatedAt == request.time;
+
+        allow delete: if isOwner(uid);
+      }
     }
 
     // ---------- Universidades: universities/{universityId} ----------

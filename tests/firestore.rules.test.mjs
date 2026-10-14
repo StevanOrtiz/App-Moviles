@@ -10,6 +10,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -250,5 +251,37 @@ describe('ranking', () => {
         getDocs(query(collection(db, name), orderBy('totalMinutes', 'desc'), limit(50))),
       );
     }
+  });
+});
+
+describe('dispositivos (push)', () => {
+  const device = (extra = {}) => ({
+    token: 'ExponentPushToken[abc123]',
+    platform: 'android',
+    updatedAt: serverTimestamp(),
+    ...extra,
+  });
+
+  test('el dueño guarda y borra el token de su dispositivo', async () => {
+    const db = dbFor('alice');
+    const ref = doc(db, 'users', 'alice', 'devices', 'ExponentPushTokenabc123');
+    await assertSucceeds(setDoc(ref, device()));
+    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  test('otro usuario no puede leer ni escribir los tokens de alice', async () => {
+    const bob = dbFor('bob');
+    const ref = doc(bob, 'users', 'alice', 'devices', 'x');
+    await assertFails(setDoc(ref, device()));
+    await assertFails(getDoc(ref));
+  });
+
+  test('rechaza campos extra y plataformas inválidas', async () => {
+    const db = dbFor('alice');
+    const ref = doc(db, 'users', 'alice', 'devices', 'x');
+    await assertFails(setDoc(ref, device({ admin: true })));
+    await assertFails(setDoc(ref, device({ platform: 'windows' })));
+    await assertFails(setDoc(ref, device({ token: '' })));
   });
 });

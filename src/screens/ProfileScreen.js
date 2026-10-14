@@ -10,12 +10,14 @@ import {
   TextInput,
   Alert,
   Platform,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme';
 import CreateProfileScreen from './CreateProfileScreen';
 import { useAuth } from '../context/AuthContext';
 import { useSessions } from '../context/SessionsContext';
+import { useNotifications } from '../context/NotificationsContext';
 import { getCurrentStreak } from '../utils/streak';
 import { formatMinutes } from '../utils/formatTime';
 import { getErrorMessage } from '../utils/authErrors';
@@ -34,6 +36,7 @@ function Option({ icon, label, onPress, danger }) {
 export default function ProfileScreen() {
   const { user: authUser, profile: user, signOut, deleteAccount } = useAuth();
   const { sessions, syncing } = useSessions();
+  const notifications = useNotifications();
   const [editMode, setEditMode] = useState(false);
   const [configVisible, setConfigVisible] = useState(false);
   const [deleteVisible, setDeleteVisible] = useState(false);
@@ -143,6 +146,31 @@ export default function ProfileScreen() {
               conexión, se suben automáticamente cuando vuelvas a tener internet.
               {syncing ? '\n\nSincronizando…' : ''}
             </Text>
+
+            <View style={styles.switchRow}>
+              <Ionicons name="notifications-outline" size={22} color={COLORS.primary} />
+              <View style={styles.switchText}>
+                <Text style={styles.switchTitle}>Recordatorio de racha</Text>
+                <Text style={styles.switchSubtitle}>
+                  {notifications.supported
+                    ? 'Te avisamos a las 8:00 PM si aún no has estudiado hoy.'
+                    : 'No disponible en la versión web.'}
+                </Text>
+              </View>
+              <Switch
+                value={notifications.enabled}
+                onValueChange={notifications.setEnabled}
+                disabled={!notifications.supported}
+                trackColor={{ true: COLORS.secondaryGreen }}
+                accessibilityLabel="Recordatorio de racha"
+              />
+            </View>
+            {notifications.denied && (
+              <Text style={styles.error}>
+                Las notificaciones están bloqueadas. Actívalas en los Ajustes del teléfono.
+              </Text>
+            )}
+
             <Pressable style={styles.modalClose} onPress={() => setConfigVisible(false)}>
               <Text style={styles.modalCloseText}>Cerrar</Text>
             </Pressable>
@@ -292,6 +320,25 @@ const styles = StyleSheet.create({
   },
   modalClose: {
     alignSelf: 'flex-end',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  switchText: {
+    flex: 1,
+  },
+  switchTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  switchSubtitle: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   modalActions: {
     flexDirection: 'row',

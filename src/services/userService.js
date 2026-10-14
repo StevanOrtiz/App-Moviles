@@ -95,8 +95,11 @@ export async function updateProfile(uid, currentProfile, { name, universityId })
 
 // Borra todo lo del usuario en Firestore (antes de eliminar la cuenta de Auth)
 export async function deleteUserData(uid, profile) {
-  const sessions = await getDocsFromServer(collection(db, 'users', uid, 'sessions'));
-  const docs = sessions.docs.map((d) => d.ref);
+  const [sessions, devices] = await Promise.all([
+    getDocsFromServer(collection(db, 'users', uid, 'sessions')),
+    getDocsFromServer(collection(db, 'users', uid, 'devices')),
+  ]);
+  const docs = [...sessions.docs, ...devices.docs].map((d) => d.ref);
 
   // Un batch admite hasta 500 operaciones
   for (let i = 0; i < docs.length; i += 450) {
