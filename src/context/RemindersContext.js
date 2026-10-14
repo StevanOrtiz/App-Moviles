@@ -24,6 +24,7 @@ import {
 } from '../services/notificationService';
 import { saveDeviceToken } from '../services/deviceService';
 import { getCachedReminders, saveCachedReminders } from '../utils/storage';
+import { getErrorCode, getErrorMessage } from '../utils/authErrors';
 
 const RemindersContext = createContext(null);
 
@@ -89,8 +90,8 @@ export function RemindersProvider({ children }) {
         saveCachedReminders(uid, list);
       },
       (e) => {
-        console.warn('No se pudieron leer los recordatorios:', e.message);
-        if (active) setError('No pudimos cargar tus recordatorios.');
+        console.warn('No se pudieron leer los recordatorios:', e.code, e.message);
+        if (active) setError(`${getErrorMessage(e)} (${getErrorCode(e)})`);
       },
     );
 

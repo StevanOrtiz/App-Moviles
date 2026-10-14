@@ -23,8 +23,15 @@ import { useReminders } from '../context/RemindersContext';
 import { MAX_REMINDERS } from '../services/reminderService';
 import { sendTestNotification } from '../services/notificationService';
 import { ALL_DAYS, WEEK_DAYS, formatReminderTime } from '../utils/reminders';
+import { getErrorCode, getErrorMessage } from '../utils/authErrors';
 
 const DEFAULT_FORM = { title: 'Hora de estudiar', hour: 19, minute: 0, days: ALL_DAYS };
+
+// Muestra el motivo real del fallo (no siempre es la conexión) con su código técnico
+function showError(title, e) {
+  console.warn(`${title}:`, e?.code, e?.message);
+  Alert.alert(title, `${getErrorMessage(e)}\n\nCódigo: ${getErrorCode(e)}`);
+}
 
 function confirm(title, message, confirmLabel, onConfirm) {
   // Alert con botones no existe en web
@@ -158,20 +165,18 @@ export default function RemindersScreen() {
     // Firestore guarda sin conexión y sube los cambios al volver la red: no se espera la respuesta
     const request =
       editing === 'new' ? addReminder(form) : updateReminder(editing.id, form);
-    request.catch(() => Alert.alert('No se pudo guardar', 'Revisa tu conexión e inténtalo de nuevo.'));
+    request.catch((e) => showError('No se pudo guardar', e));
     closeModal();
   };
 
   const handleToggle = (reminder) =>
-    updateReminder(reminder.id, { enabled: !reminder.enabled }).catch(() =>
-      Alert.alert('No se pudo actualizar', 'Revisa tu conexión e inténtalo de nuevo.'),
+    updateReminder(reminder.id, { enabled: !reminder.enabled }).catch((e) =>
+      showError('No se pudo actualizar', e),
     );
 
   const handleDelete = (reminder) =>
     confirm('Eliminar recordatorio', `¿Eliminar "${reminder.title}"?`, 'Eliminar', () =>
-      deleteReminder(reminder.id).catch(() =>
-        Alert.alert('No se pudo eliminar', 'Revisa tu conexión e inténtalo de nuevo.'),
-      ),
+      deleteReminder(reminder.id).catch((e) => showError('No se pudo eliminar', e)),
     );
 
   const handleEnable = async () => {

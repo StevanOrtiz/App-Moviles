@@ -13,11 +13,22 @@ const MESSAGES = {
   'auth/requires-recent-login': 'Por seguridad, vuelve a escribir tu contraseña.',
   'auth/operation-not-allowed': 'El inicio de sesión con correo no está habilitado en Firebase.',
   unavailable: 'Sin conexión con el servidor. Inténtalo de nuevo.',
-  'permission-denied': 'No tienes permiso para realizar esta acción.',
+  'deadline-exceeded': 'El servidor tardó demasiado en responder. Inténtalo de nuevo.',
+  'resource-exhausted': 'Demasiadas solicitudes. Inténtalo más tarde.',
+  'invalid-argument': 'Los datos enviados no son válidos.',
+  // Firestore rechaza con este código cuando las reglas de seguridad no permiten la operación
+  // (por ejemplo, si firestore.rules no se publicó en la consola de Firebase).
+  'permission-denied':
+    'Firebase no permitió guardar en tu cuenta. Si eres el desarrollador, publica las reglas de firestore.rules en la consola.',
 };
 
 export function getErrorMessage(error) {
   return MESSAGES[error?.code] || 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+}
+
+// Código técnico (por ejemplo "permission-denied"), útil para saber qué falló de verdad
+export function getErrorCode(error) {
+  return error?.code || 'desconocido';
 }
 
 export function isValidEmail(email) {

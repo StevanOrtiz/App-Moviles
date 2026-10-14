@@ -111,6 +111,7 @@ firestore.rules                 reglas de seguridad (con pruebas en tests/)
    npx firebase login
    npx firebase deploy --only firestore:rules
    ```
+   **Cada vez que cambie `firestore.rules` hay que volver a publicarlas.** Si no, lo nuevo falla con `permission-denied`. Las rutas que cubren hoy son `users/{uid}`, `users/{uid}/sessions`, `users/{uid}/reminders`, `users/{uid}/devices` y `universities/{id}`.
 4. Si en Firestore quedaron documentos de pruebas anteriores (por ejemplo, `users` con usuarios anónimos o datos sin `universityId`), bórralos desde la consola. No cumplen el formato nuevo y las reglas no dejan actualizarlos.
 
 ## 8. Pruebas de las reglas
