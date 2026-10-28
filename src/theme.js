@@ -7,4 +7,6 @@ export const COLORS = {
   textSecondary: '#7C8581',
   white: '#FFFFFF',
   error: '#C0392B',
+  gold: '#F5B301',
+  goldSoft: '#FFF8E1',
 };

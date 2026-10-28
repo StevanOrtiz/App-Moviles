@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../theme';
 
-export default function StreakCard({ streak, week }) {
+export default function StreakCard({ streak, week, premium }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, premium && styles.premiumCard]}>
       <View style={styles.topRow}>
         <Text style={styles.flame}>🔥</Text>
         <View>
@@ -28,6 +28,13 @@ export default function StreakCard({ streak, week }) {
 }
 
 const styles = StyleSheet.create({
+  premiumCard: {
+    borderWidth: 2,
+    borderColor: COLORS.gold,
+    backgroundColor: COLORS.goldSoft,
+    shadowColor: COLORS.gold,
+    shadowOpacity: 0.4,
+  },
   card: {
     backgroundColor: COLORS.white,
     borderRadius: 20,

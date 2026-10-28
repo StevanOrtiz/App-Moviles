@@ -32,8 +32,8 @@ export async function fetchRemoteSessions(uid) {
   const snapshot = await getDocsFromServer(collection(db, 'users', uid, 'sessions'));
   return sortSessions(
     snapshot.docs.map((d) => {
-      const { id, date, duration, type, time } = d.data();
-      return { id, date, duration, type, time };
+      const { id, date, duration, type, time, subjectId } = d.data();
+      return subjectId ? { id, date, duration, type, time, subjectId } : { id, date, duration, type, time };
     }),
   );
 }
@@ -54,10 +54,15 @@ function commitSession(uid, profile, session, allSessions) {
     duration: session.duration,
     type: session.type,
     time: session.time,
+    ...(session.subjectId ? { subjectId: session.subjectId } : {}),
     createdAt: serverTimestamp(),
   });
 
   batch.update(userRef(uid), {
+    // Minutos por materia (ranking por materia); la clave con punto actualiza solo esa materia
+    ...(session.subjectId
+      ? { [`subjectMinutes.${session.subjectId}`]: increment(session.duration) }
+      : {}),
     totalMinutes: increment(session.duration),
     sessions: increment(1),
     currentStreak: getCurrentStreak(allSessions),

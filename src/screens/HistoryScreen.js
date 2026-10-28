@@ -56,7 +56,7 @@ export default function HistoryScreen({ navigation }) {
                   <Text style={styles.groupTotal}>Total: {formatMinutes(totalMinutes)}</Text>
                 </View>
                 {items.map((s) => (
-                  <SessionItem key={s.id} duration={s.duration} time={s.time} />
+                  <SessionItem key={s.id} duration={s.duration} time={s.time} subjectId={s.subjectId} />
                 ))}
               </View>
             );

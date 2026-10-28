@@ -69,7 +69,7 @@ function createProfile(db, uid, universityId = 'icesi', name = 'Universidad ICES
 function addSession(
   db,
   uid,
-  { id = '1700000000000', duration = 25, userMinutes, uniMinutes } = {},
+  { id = '1700000000000', duration = 25, userMinutes, uniMinutes, subjectId, subjectMinutes } = {},
 ) {
   const batch = writeBatch(db);
   batch.set(doc(db, 'users', uid, 'sessions', id), {
@@ -78,9 +78,11 @@ function addSession(
     duration,
     type: 'pomodoro',
     time: '10:30 AM',
+    ...(subjectId ? { subjectId } : {}),
     createdAt: serverTimestamp(),
   });
   batch.update(doc(db, 'users', uid), {
+    ...(subjectId ? { [`subjectMinutes.${subjectId}`]: subjectMinutes ?? increment(duration) } : {}),
     totalMinutes: increment(userMinutes ?? duration),
     sessions: increment(1),
     currentStreak: 1,
@@ -218,6 +220,71 @@ describe('sesiones', () => {
     const bob = dbFor('bob');
     await assertSucceeds(getDoc(doc(bob, 'users', 'alice')));
     await assertFails(getDoc(doc(bob, 'users', 'alice', 'sessions', '1700000000000')));
+  });
+});
+
+describe('materias', () => {
+  test('una sesión con materia suma a subjectMinutes', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertSucceeds(addSession(db, 'alice', { subjectId: 'calculo' }));
+    await assertSucceeds(addSession(db, 'alice', { id: '2', subjectId: 'calculo' }));
+    const user = (await getDoc(doc(db, 'users', 'alice'))).data();
+    assert.equal(user.subjectMinutes.calculo, 50);
+  });
+
+  test('no se pueden inflar los minutos de una materia', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertFails(addSession(db, 'alice', { subjectId: 'calculo', subjectMinutes: increment(600) }));
+  });
+
+  test('no se pueden subir minutos de una materia sin sesión con esa materia', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertFails(addSession(db, 'alice', { subjectId: 'calculo', subjectMinutes: increment(0) }));
+    await assertFails(
+      updateDoc(doc(db, 'users', 'alice'), {
+        'subjectMinutes.fisica': increment(25),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test('el id de materia debe ser un slug válido', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertFails(addSession(db, 'alice', { subjectId: 'Cálculo!' }));
+  });
+});
+
+describe('premium (demo)', () => {
+  const toggle = (db, uid, enabled) =>
+    updateDoc(doc(db, 'users', uid), {
+      premium: enabled,
+      premiumSince: enabled ? serverTimestamp() : null,
+      updatedAt: serverTimestamp(),
+    });
+
+  test('el dueño activa y desactiva su Premium', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertSucceeds(toggle(db, 'alice', true));
+    assert.equal((await getDoc(doc(db, 'users', 'alice'))).data().premium, true);
+    await assertSucceeds(toggle(db, 'alice', false));
+  });
+
+  test('no se puede activar Premium en otro perfil ni al crearlo', async () => {
+    await createProfile(dbFor('alice'), 'alice');
+    await assertFails(toggle(dbFor('bob'), 'alice', true));
+    await assertFails(
+      updateDoc(doc(dbFor('alice'), 'users', 'alice'), {
+        premium: true,
+        premiumSince: serverTimestamp(),
+        totalMinutes: 99999,
+        updatedAt: serverTimestamp(),
+      }),
+    );
   });
 });
 

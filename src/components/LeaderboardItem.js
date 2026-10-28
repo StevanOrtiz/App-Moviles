@@ -12,11 +12,17 @@ export default function LeaderboardItem({
   totalMinutes,
   streak,
   isCurrentUser,
+  premium,
 }) {
   const isTop = position <= 3;
 
   return (
-    <View style={[styles.row, isCurrentUser && styles.currentUserRow, isTop && styles.topRow]}>
+    <View style={[
+        styles.row,
+        isCurrentUser && styles.currentUserRow,
+        isTop && styles.topRow,
+        premium && styles.premiumRow,
+      ]}>
       <View style={styles.positionWrap}>
         {MEDALS[position] ? (
           <Text style={styles.medal}>{MEDALS[position]}</Text>
@@ -27,6 +33,7 @@ export default function LeaderboardItem({
 
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>
+          {premium ? '👑 ' : ''}
           {name}
           {isCurrentUser ? ' (Tú)' : ''}
         </Text>
@@ -59,6 +66,11 @@ const styles = StyleSheet.create({
   topRow: {
     borderWidth: 1.5,
     borderColor: COLORS.secondaryGreen,
+  },
+  premiumRow: {
+    borderWidth: 1.5,
+    borderColor: COLORS.gold,
+    backgroundColor: COLORS.goldSoft,
   },
   currentUserRow: {
     borderWidth: 1.5,
