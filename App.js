@@ -10,6 +10,8 @@ import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SessionsProvider } from './src/context/SessionsContext';
+import { PremiumProvider } from './src/context/PremiumContext';
+import PremiumScreen from './src/screens/PremiumScreen';
 import { RemindersProvider } from './src/context/RemindersContext';
 import { NotificationsProvider } from './src/context/NotificationsContext';
 import { navigationRef } from './src/navigation/navigationRef';
@@ -47,7 +49,12 @@ function RootNavigator() {
   if (!user) return <AuthNavigator />;
   if (profileStatus === 'loading') return <Loading />;
   if (profileStatus === 'missing') return <CreateProfileScreen />;
-  return <AppNavigator />;
+  return (
+    <>
+      <AppNavigator />
+      <PremiumScreen />
+    </>
+  );
 }
 
 export default function App() {
@@ -59,6 +66,7 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <AuthProvider>
+        <PremiumProvider>
         <SessionsProvider>
           <RemindersProvider>
             <NotificationsProvider>
@@ -68,6 +76,7 @@ export default function App() {
             </NotificationsProvider>
           </RemindersProvider>
         </SessionsProvider>
+        </PremiumProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

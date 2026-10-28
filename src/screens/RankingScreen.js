@@ -12,6 +12,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../theme';
 import LeaderboardItem from '../components/LeaderboardItem';
+import SubjectPicker from '../components/SubjectPicker';
+import { findSubject } from '../data/subjects';
 import { useAuth } from '../context/AuthContext';
 import { getRanking } from '../services/rankingService';
 import { formatMinutes } from '../utils/formatTime';
@@ -21,13 +23,23 @@ export default function RankingScreen() {
   const [tab, setTab] = useState('students');
   const [ranking, setRanking] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Filtro opcional: null = ranking general (todas las materias)
+  const [subjectId, setSubjectId] = useState(null);
 
   const lastLoad = useRef(0);
 
   const load = useCallback(async () => {
     lastLoad.current = Date.now();
-    setRanking(await getRanking());
-  }, []);
+    setRanking(await getRanking(subjectId));
+  }, [subjectId]);
+
+  // Al cambiar de materia se descarta el ranking anterior y se recarga
+  const changeSubject = (id) => {
+    if (id === subjectId) return;
+    lastLoad.current = 0;
+    setRanking(null);
+    setSubjectId(id);
+  };
 
   // Al entrar a la pestaña recarga como máximo una vez por minuto (cada carga son lecturas facturables)
   useFocusEffect(
@@ -73,6 +85,11 @@ export default function RankingScreen() {
             </Text>
           </Pressable>
         </View>
+        {tab === 'students' && (
+          <View style={styles.filter}>
+            <SubjectPicker value={subjectId} onChange={changeSubject} noneLabel="Todas" />
+          </View>
+        )}
       </View>
 
       {ranking?.fromCache && (
@@ -88,7 +105,9 @@ export default function RankingScreen() {
         >
           {(tab === 'students' ? students : universitiesRanked).length === 0 ? (
             <Text style={styles.empty}>
-              Todavía no hay datos en el ranking. ¡Completa un Pomodoro!
+              {subjectId
+                ? `Nadie ha estudiado ${findSubject(subjectId).name} todavía. ¡Sé el primero!`
+                : 'Todavía no hay datos en el ranking. ¡Completa un Pomodoro!'}
             </Text>
           ) : tab === 'students' ? (
             students.map((s, index) => (
@@ -100,6 +119,7 @@ export default function RankingScreen() {
                 totalMinutes={s.totalMinutes}
                 streak={s.currentStreak}
                 isCurrentUser={!!s.isCurrentUser}
+                premium={s.premium}
               />
             ))
           ) : (
@@ -130,6 +150,9 @@ export default function RankingScreen() {
 }
 
 const styles = StyleSheet.create({
+  filter: {
+    marginBottom: 8,
+  },
   loader: {
     marginTop: 48,
   },

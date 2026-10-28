@@ -17,6 +17,7 @@ import { COLORS } from '../theme';
 import CreateProfileScreen from './CreateProfileScreen';
 import { useAuth } from '../context/AuthContext';
 import { useSessions } from '../context/SessionsContext';
+import { usePremium } from '../context/PremiumContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { getCurrentStreak } from '../utils/streak';
 import { formatMinutes } from '../utils/formatTime';
@@ -37,6 +38,7 @@ export default function ProfileScreen() {
   const { user: authUser, profile: user, signOut, deleteAccount } = useAuth();
   const { sessions, syncing } = useSessions();
   const notifications = useNotifications();
+  const { isPremium, openPremium } = usePremium();
   const [editMode, setEditMode] = useState(false);
   const [configVisible, setConfigVisible] = useState(false);
   const [deleteVisible, setDeleteVisible] = useState(false);
@@ -96,7 +98,10 @@ export default function ProfileScreen() {
           <Text style={styles.avatarText}>{initial}</Text>
         </View>
 
-        <Text style={styles.name}>{user?.name}</Text>
+        <Text style={[styles.name, isPremium && { color: COLORS.gold }]}>
+          {isPremium ? '👑 ' : ''}
+          {user?.name}
+        </Text>
         <Text style={styles.university}>{user?.universityName}</Text>
         <Text style={styles.email}>{authUser?.email}</Text>
 
@@ -116,6 +121,11 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.optionsWrap}>
+          <Option
+            icon="diamond-outline"
+            label={isPremium ? 'Mi suscripción Premium' : 'Hazte Premium 👑'}
+            onPress={openPremium}
+          />
           <Option icon="create-outline" label="Editar perfil" onPress={() => setEditMode(true)} />
           <Option
             icon="school-outline"

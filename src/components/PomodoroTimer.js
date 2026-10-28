@@ -5,9 +5,14 @@ import { COLORS } from '../theme';
 import { formatClock } from '../utils/formatTime';
 import { cancelPomodoroAlarm, schedulePomodoroAlarm } from '../services/notificationService';
 
-const DURATION = 1500;
-
-export default function PomodoroTimer({ timer, setTimer, isRunning, setIsRunning, onComplete }) {
+export default function PomodoroTimer({
+  timer,
+  setTimer,
+  isRunning,
+  setIsRunning,
+  onComplete,
+  duration = 1500,
+}) {
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
@@ -64,7 +69,7 @@ export default function PomodoroTimer({ timer, setTimer, isRunning, setIsRunning
 
   const handleReset = () => {
     setIsRunning(false);
-    setTimer(DURATION);
+    setTimer(duration);
   };
 
   return (
@@ -77,11 +82,11 @@ export default function PomodoroTimer({ timer, setTimer, isRunning, setIsRunning
           <Pressable
             style={[styles.controlButton, styles.mainButton]}
             onPress={handleStart}
-            accessibilityLabel={timer === DURATION ? 'Iniciar' : 'Reanudar'}
+            accessibilityLabel={timer === duration ? 'Iniciar' : 'Reanudar'}
           >
             <Ionicons name="play" size={22} color={COLORS.primary} />
             <Text style={styles.mainButtonText}>
-              {timer === DURATION ? 'Iniciar' : 'Reanudar'}
+              {timer === duration ? 'Iniciar' : 'Reanudar'}
             </Text>
           </Pressable>
         ) : (

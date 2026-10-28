@@ -33,14 +33,45 @@ service cloud.firestore {
         : 0;
     }
 
+    // Materia de la sesión que se crea en esta misma escritura; null si no tiene.
+    function newSessionSubject(uid, sessionId) {
+      return sessionId is string
+          && !exists(sessionPath(uid, sessionId))
+          && existsAfter(sessionPath(uid, sessionId))
+          && 'subjectId' in getAfter(sessionPath(uid, sessionId)).data
+        ? getAfter(sessionPath(uid, sessionId)).data.subjectId
+        : null;
+    }
+
     // ---------- Usuarios: users/{uid} ----------
     match /users/{uid} {
       function keysOk(data) {
         return data.keys().hasOnly([
           'name', 'universityId', 'universityName',
           'totalMinutes', 'sessions', 'currentStreak', 'bestStreak',
-          'lastSessionDate', 'lastSessionId', 'createdAt', 'updatedAt'
+          'lastSessionDate', 'lastSessionId', 'createdAt', 'updatedAt',
+          'subjectMinutes', 'premium', 'premiumSince'
         ]);
+      }
+
+      // DEMO: Premium se activa desde el cliente. Cerrar esta regla cuando exista pasarela de pago.
+      function isPremiumToggle() {
+        let after = request.resource.data;
+        return after.diff(resource.data).affectedKeys().hasOnly(['premium', 'premiumSince', 'updatedAt'])
+          && after.premium is bool
+          && (after.premium ? after.premiumSince == request.time : after.premiumSince == null);
+      }
+
+      // Minutos por materia: solo sube la materia de la sesión nueva, exactamente su duración
+      function subjectMinutesOk(uid) {
+        let after = request.resource.data;
+        let before = resource.data;
+        let sid = newSessionSubject(uid, after.lastSessionId);
+        let beforeMap = before.get('subjectMinutes', {});
+        return sid == null
+          ? after.get('subjectMinutes', {}) == beforeMap
+          : after.subjectMinutes.diff(beforeMap).affectedKeys().hasOnly([sid])
+            && after.subjectMinutes[sid] == beforeMap.get(sid, 0) + newSessionDuration(uid, after.lastSessionId);
       }
 
       function profileOk(data) {
@@ -62,8 +93,9 @@ service cloud.firestore {
         let minutes = newSessionDuration(uid, after.lastSessionId);
         return after.diff(before).affectedKeys().hasOnly([
             'totalMinutes', 'sessions', 'currentStreak', 'bestStreak',
-            'lastSessionDate', 'lastSessionId', 'updatedAt'
+            'lastSessionDate', 'lastSessionId', 'updatedAt', 'subjectMinutes'
           ])
+          && subjectMinutesOk(uid)
           && minutes > 0
           && after.totalMinutes == before.totalMinutes + minutes
           && after.sessions == before.sessions + 1
@@ -85,6 +117,8 @@ service cloud.firestore {
         && request.resource.data.bestStreak == 0
         && request.resource.data.lastSessionDate == null
         && request.resource.data.lastSessionId == null
+        && !('premium' in request.resource.data)
+        && !('subjectMinutes' in request.resource.data)
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
@@ -92,7 +126,7 @@ service cloud.firestore {
         && keysOk(request.resource.data)
         && profileOk(request.resource.data)
         && request.resource.data.updatedAt == request.time
-        && (isProfileEdit() || isSessionUpdate(uid));
+        && (isProfileEdit() || isSessionUpdate(uid) || isPremiumToggle());
 
       allow delete: if isOwner(uid);
 
@@ -101,7 +135,7 @@ service cloud.firestore {
         allow read: if isOwner(uid);
 
         allow create: if isOwner(uid)
-          && request.resource.data.keys().hasOnly(['id', 'date', 'duration', 'type', 'time', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['id', 'date', 'duration', 'type', 'time', 'subjectId', 'createdAt'])
           && request.resource.data.keys().hasAll(['id', 'date', 'duration', 'type', 'time', 'createdAt'])
           && sessionId.size() <= 40
           && request.resource.data.id == sessionId
@@ -113,6 +147,9 @@ service cloud.firestore {
           && request.resource.data.type == 'pomodoro'
           && request.resource.data.time is string
           && request.resource.data.time.size() <= 10
+          && (!('subjectId' in request.resource.data)
+              || (request.resource.data.subjectId is string
+                  && request.resource.data.subjectId.matches('^[a-z0-9-]{1,40}$')))
           && request.resource.data.createdAt == request.time
           // Debe crearse junto con la actualización de totales del usuario
           && getAfter(userPath(uid)).data.lastSessionId == sessionId;

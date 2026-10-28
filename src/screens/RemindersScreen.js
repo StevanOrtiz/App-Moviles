@@ -21,6 +21,7 @@ import SecondaryButton from '../components/SecondaryButton';
 import ReminderItem from '../components/ReminderItem';
 import { useReminders } from '../context/RemindersContext';
 import { MAX_REMINDERS } from '../services/reminderService';
+import { FREE_REMINDER_LIMIT, usePremium } from '../context/PremiumContext';
 import { sendTestNotification } from '../services/notificationService';
 import { ALL_DAYS, WEEK_DAYS, formatReminderTime } from '../utils/reminders';
 import { getErrorCode, getErrorMessage } from '../utils/authErrors';
@@ -125,6 +126,7 @@ function PermissionCard({ permission, onEnable, onTest }) {
 }
 
 export default function RemindersScreen() {
+  const { isPremium, openPremium } = usePremium();
   const {
     reminders,
     loading,
@@ -194,7 +196,8 @@ export default function RemindersScreen() {
       Alert.alert('No se pudo enviar', 'Intenta de nuevo en unos segundos.'),
     );
 
-  const atLimit = reminders.length >= MAX_REMINDERS;
+  const limit = isPremium ? MAX_REMINDERS : FREE_REMINDER_LIMIT;
+  const atLimit = reminders.length >= limit;
 
   const header = (
     <View>
@@ -207,8 +210,8 @@ export default function RemindersScreen() {
         <Text style={styles.sectionTitle}>Mis recordatorios</Text>
         <Pressable
           style={[styles.addButton, atLimit && styles.addButtonDisabled]}
-          onPress={openNew}
-          disabled={atLimit}
+          onPress={atLimit && !isPremium ? openPremium : openNew}
+          disabled={atLimit && isPremium}
           accessibilityLabel="Nuevo recordatorio"
         >
           <Ionicons name="add" size={20} color={COLORS.white} />
@@ -216,7 +219,11 @@ export default function RemindersScreen() {
         </Pressable>
       </View>
       {atLimit && (
-        <Text style={styles.hint}>Llegaste al máximo de {MAX_REMINDERS} recordatorios.</Text>
+        <Text style={styles.hint} onPress={isPremium ? undefined : openPremium}>
+          {isPremium
+            ? `Llegaste al máximo de ${MAX_REMINDERS} recordatorios.`
+            : `Plan gratis: ${FREE_REMINDER_LIMIT} recordatorios. Pásate a Premium 👑 para tener hasta ${MAX_REMINDERS}.`}
+        </Text>
       )}
       {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>

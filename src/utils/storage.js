@@ -58,8 +58,11 @@ export const saveCachedReminders = (uid, reminders) => writeJson(KEYS.reminderLi
 export const getCachedPushToken = (uid) => readJson(KEYS.pushToken(uid), null);
 export const saveCachedPushToken = (uid, token) => writeJson(KEYS.pushToken(uid), token);
 
-export const getCachedRanking = () => readJson(KEYS.RANKING, null);
-export const saveCachedRanking = (ranking) => writeJson(KEYS.RANKING, ranking);
+// Una copia por filtro: `ranking:cache` (todas las materias) o `ranking:cache:{materia}`
+const rankingKey = (subjectId) => (subjectId ? `${KEYS.RANKING}:${subjectId}` : KEYS.RANKING);
+export const getCachedRanking = (subjectId = null) => readJson(rankingKey(subjectId), null);
+export const saveCachedRanking = (ranking, subjectId = null) =>
+  writeJson(rankingKey(subjectId), ranking);
 
 export async function clearUserCache(uid) {
   try {

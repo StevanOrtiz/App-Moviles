@@ -1,17 +1,19 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Modal } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Modal, Pressable } from 'react-native';
 import StreakCard from '../components/StreakCard';
 import PomodoroTimer from '../components/PomodoroTimer';
 import StatCard from '../components/StatCard';
 import SessionItem from '../components/SessionItem';
 import PrimaryButton from '../components/PrimaryButton';
+import SubjectPicker from '../components/SubjectPicker';
+import PremiumBanner from '../components/PremiumBanner';
 import { COLORS } from '../theme';
+import { findSubject } from '../data/subjects';
+import { DEFAULT_DURATION, POMODORO_DURATIONS, usePremium } from '../context/PremiumContext';
 import { useAuth } from '../context/AuthContext';
 import { useSessions } from '../context/SessionsContext';
 import { getCurrentStreak, getWeekIndicator } from '../utils/streak';
 import { formatMinutes, todayISO, formatClockTime } from '../utils/formatTime';
-
-const DURATION = 1500;
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -23,27 +25,55 @@ function getGreeting() {
 export default function HomeScreen() {
   const { profile: user } = useAuth();
   const { sessions, addSession } = useSessions();
-  const [timer, setTimer] = useState(DURATION);
+  const { isPremium, openPremium } = usePremium();
+  // Duración en minutos: Premium la elige, gratis siempre 25
+  const [minutes, setMinutes] = useState(DEFAULT_DURATION);
+  const [timer, setTimer] = useState(DEFAULT_DURATION * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [subjectId, setSubjectId] = useState(null);
+  const [completed, setCompleted] = useState({ minutes: DEFAULT_DURATION, subjectId: null });
+  const duration = (isPremium ? minutes : DEFAULT_DURATION) * 60;
+
+  // Si Premium se cancela, el Pomodoro vuelve a la duración estándar
+  useEffect(() => {
+    if (!isPremium) {
+      setMinutes(DEFAULT_DURATION);
+      setTimer((current) => (current === minutes * 60 ? DEFAULT_DURATION * 60 : current));
+    }
+  }, [isPremium]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const chooseMinutes = (value) => {
+    if (isRunning) return;
+    setMinutes(value);
+    setTimer(value * 60);
+  };
+
+  // Refs para que handleComplete (que el temporizador guarda al iniciar) vea la materia y duración vigentes
+  const subjectRef = useRef(subjectId);
+  const durationRef = useRef(duration);
+  subjectRef.current = subjectId;
+  durationRef.current = duration;
 
   const handleComplete = useCallback(() => {
     const now = new Date();
     const newSession = {
       id: Date.now().toString(),
       date: todayISO(),
-      duration: 25,
+      duration: durationRef.current / 60,
       type: 'pomodoro',
       time: formatClockTime(now),
+      ...(subjectRef.current ? { subjectId: subjectRef.current } : {}),
     };
 
     addSession(newSession);
+    setCompleted({ minutes: newSession.duration, subjectId: subjectRef.current });
     setModalVisible(true);
   }, [addSession]);
 
   const handleContinue = () => {
     setModalVisible(false);
-    setTimer(DURATION);
+    setTimer(duration);
   };
 
   const today = todayISO();
@@ -66,15 +96,47 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.greeting}>
-          {getGreeting()}, {user?.name || 'Estudiante'} 👋
+          {getGreeting()}, {isPremium ? '👑 ' : ''}
+          {user?.name || 'Estudiante'} 👋
         </Text>
 
         <View style={styles.section}>
-          <StreakCard streak={currentStreak} week={week} />
+          <StreakCard streak={currentStreak} week={week} premium={isPremium} />
+        </View>
+
+        {!isPremium && (
+          <View style={styles.section}>
+            <PremiumBanner onPress={openPremium} />
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>¿Qué vas a estudiar?</Text>
+          <SubjectPicker value={subjectId} onChange={setSubjectId} disabled={isRunning} />
         </View>
 
         <View style={styles.section}>
+          <View style={styles.durations}>
+            {POMODORO_DURATIONS.map((m) => {
+              const locked = !isPremium && m !== DEFAULT_DURATION;
+              const active = (isPremium ? minutes : DEFAULT_DURATION) === m;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => (locked ? openPremium() : chooseMinutes(m))}
+                  style={[styles.durationChip, active && styles.durationChipActive]}
+                  accessibilityLabel={`${m} minutos${locked ? ' (Premium)' : ''}`}
+                >
+                  <Text style={[styles.durationText, active && styles.durationTextActive]}>
+                    {locked ? '🔒 ' : ''}
+                    {m}'
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <PomodoroTimer
+            duration={duration}
             timer={timer}
             setTimer={setTimer}
             isRunning={isRunning}
@@ -99,6 +161,7 @@ export default function HomeScreen() {
                 duration={s.duration}
                 time={s.time}
                 dateLabel={s.date === today ? 'Hoy' : s.date}
+                subjectId={s.subjectId}
               />
             ))
           )}
@@ -109,7 +172,10 @@ export default function HomeScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>¡Sesión completada! 🎉</Text>
-            <Text style={styles.modalBody}>Has estudiado durante 25 minutos.</Text>
+            <Text style={styles.modalBody}>
+              Has estudiado {completed.subjectId ? `${findSubject(completed.subjectId).name} ` : ''}
+              durante {completed.minutes} minutos.
+            </Text>
             <Text style={styles.modalStreak}>🔥 Tu racha continúa</Text>
             <PrimaryButton
               title="Continuar"
@@ -124,6 +190,29 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  durations: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  durationChip: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+  },
+  durationChipActive: {
+    backgroundColor: COLORS.primary,
+  },
+  durationText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  durationTextActive: {
+    color: COLORS.white,
+  },
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

@@ -33,9 +33,11 @@ users/{uid}                       ← perfil público (se usa en el ranking)
   name, universityId, universityName
   totalMinutes, sessions, currentStreak, bestStreak
   lastSessionDate, lastSessionId, createdAt, updatedAt
+  subjectMinutes { [subjectId]: minutos }   ← ranking por materia (sube con cada sesión con materia)
+  premium (bool), premiumSince               ← suscripción (DEMO: se activa con un botón)
 
 users/{uid}/sessions/{sessionId}  ← historial privado
-  id, date (YYYY-MM-DD), duration (min), type ("pomodoro"), time ("10:30 AM"), createdAt
+  id, date (YYYY-MM-DD), duration (min), type ("pomodoro"), time ("10:30 AM"), subjectId (opcional), createdAt
 
 users/{uid}/reminders/{id}        ← recordatorios de estudio (privados)
   title, hour (0-23), minute (0-59), days ([1..7], 1 = domingo), enabled, createdAt, updatedAt
@@ -161,3 +163,11 @@ Levanta el emulador de Firestore (requiere Java) y comprueba, entre otras cosas,
 |---|---|---|---|
 | Notificaciones locales (recordatorios, alarma) | Sí | Sí | No |
 | Push remotas | No | Sí (celular físico) | No |
+
+
+## 9. Materias, estadísticas y Premium
+
+- Las materias están en `src/data/subjects.js` (el `id` se guarda en Firestore; no lo cambies).
+- El ranking por materia es opcional: `getRanking(subjectId)` ordena por `subjectMinutes.{id}`. Las sesiones anteriores quedan "Sin materia".
+- `src/utils/stats.js` calcula las estadísticas (con pruebas en `tests/stats.test.mjs`).
+- Premium es **modo demo**: `users/{uid}.premium` lo cambia el propio usuario (regla `isPremiumToggle`). Antes de cobrar hay que cerrar esa regla y activarlo desde un backend tras validar el pago.

@@ -2,15 +2,19 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme';
+import { findSubject } from '../data/subjects';
 
-export default function SessionItem({ duration, time, dateLabel }) {
+export default function SessionItem({ duration, time, dateLabel, subjectId }) {
+  const subject = findSubject(subjectId);
   return (
     <View style={styles.row}>
       <View style={styles.iconWrap}>
-        <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+        <Ionicons name={subject.icon} size={20} color={subject.color} />
       </View>
       <View style={styles.textWrap}>
-        <Text style={styles.duration}>{duration} min</Text>
+        <Text style={styles.duration}>
+          {duration} min{subjectId ? ` · ${subject.name}` : ''}
+        </Text>
         <Text style={styles.time}>
           {dateLabel ? `${dateLabel} · ` : ''}
           {time}

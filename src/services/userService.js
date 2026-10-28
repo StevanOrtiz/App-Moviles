@@ -5,6 +5,7 @@ import {
   increment,
   onSnapshot,
   serverTimestamp,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -41,6 +42,8 @@ function toProfile(snapshot) {
     currentStreak: data.currentStreak || 0,
     bestStreak: data.bestStreak || 0,
     lastSessionDate: data.lastSessionDate || null,
+    subjectMinutes: data.subjectMinutes || {},
+    premium: data.premium === true,
   };
 }
 
@@ -91,6 +94,15 @@ export async function updateProfile(uid, currentProfile, { name, universityId })
     changeStudents(batch, universityId, 1);
   }
   await batch.commit();
+}
+
+// DEMO: Premium se activa con un botón. Cuando exista pasarela de pago, esto lo hará un backend.
+export async function setPremium(uid, enabled) {
+  await updateDoc(userRef(uid), {
+    premium: enabled,
+    premiumSince: enabled ? serverTimestamp() : null,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // Borra todo lo del usuario en Firestore (antes de eliminar la cuenta de Auth)
