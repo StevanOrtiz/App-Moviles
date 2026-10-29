@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import { SPRING_SOFT } from '../utils/animation';
 import * as haptics from '../utils/haptics';
 import HomeScreen from '../screens/HomeScreen';
@@ -58,7 +58,7 @@ export default function AppNavigator() {
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '600',
+          fontFamily: FONTS.semibold,
         },
         tabBarIcon: ({ color, size, focused }) => (
           <TabIcon name={ICONS[route.name]} focused={focused} color={color} size={size} />

@@ -11,6 +11,7 @@ import { db } from '../config/firebase';
 import { userRef, universityRef } from './userService';
 import { getCurrentStreak, getBestStreak } from '../utils/streak';
 import { getOutbox, saveOutbox } from '../utils/storage';
+import { isCustomId } from '../data/subjects';
 
 const sessionRef = (uid, id) => doc(db, 'users', uid, 'sessions', id);
 
@@ -60,7 +61,8 @@ function commitSession(uid, profile, session, allSessions) {
 
   batch.update(userRef(uid), {
     // Minutos por materia (ranking por materia); la clave con punto actualiza solo esa materia
-    ...(session.subjectId
+    // (las materias personalizadas no cuentan en el ranking por materia)
+    ...(session.subjectId && !isCustomId(session.subjectId)
       ? { [`subjectMinutes.${session.subjectId}`]: increment(session.duration) }
       : {}),
     totalMinutes: increment(session.duration),

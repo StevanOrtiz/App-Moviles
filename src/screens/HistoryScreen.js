@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import SessionItem from '../components/SessionItem';
-import SecondaryButton from '../components/SecondaryButton';
+import EmptyState from '../components/EmptyState';
+import FadeInView from '../components/FadeInView';
+import Paper from '../components/Paper';
 import { useSessions } from '../context/SessionsContext';
 import { formatMinutes, todayISO } from '../utils/formatTime';
 
@@ -27,6 +29,7 @@ export default function HistoryScreen({ navigation }) {
   const orderedDates = Object.keys(grouped).sort((a, b) => (a < b ? 1 : -1));
 
   return (
+    <Paper>
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>Historial</Text>
@@ -34,23 +37,21 @@ export default function HistoryScreen({ navigation }) {
 
       {sessions.length === 0 ? (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyTitle}>Todavía no tienes sesiones.</Text>
-          <Text style={styles.emptySubtitle}>
-            Completa tu primer Pomodoro{'\n'}y comienza tu racha 🔥
-          </Text>
-          <SecondaryButton
-            title="Empezar a estudiar"
-            onPress={() => navigation.navigate('Inicio')}
-            accessibilityLabel="Empezar a estudiar"
+          <EmptyState
+            emoji="📚"
+            title="Todavía no tienes sesiones"
+            text="Completa tu primer Pomodoro y comienza tu racha 🔥"
+            actionLabel="Empezar a estudiar"
+            onAction={() => navigation.navigate('Inicio')}
           />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          {orderedDates.map((date) => {
+          {orderedDates.map((date, index) => {
             const items = [...grouped[date]].reverse();
             const totalMinutes = items.reduce((sum, s) => sum + s.duration, 0);
             return (
-              <View key={date} style={styles.group}>
+              <FadeInView key={date} delay={Math.min(index, 8) * 50} style={styles.group}>
                 <View style={styles.groupHeader}>
                   <Text style={styles.groupTitle}>{dateLabel(date, today)}</Text>
                   <Text style={styles.groupTotal}>Total: {formatMinutes(totalMinutes)}</Text>
@@ -58,19 +59,20 @@ export default function HistoryScreen({ navigation }) {
                 {items.map((s) => (
                   <SessionItem key={s.id} duration={s.duration} time={s.time} subjectId={s.subjectId} />
                 ))}
-              </View>
+              </FadeInView>
             );
           })}
         </ScrollView>
       )}
     </SafeAreaView>
+    </Paper>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: 'transparent',
   },
   header: {
     paddingHorizontal: 20,
@@ -78,7 +80,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 16,
   },
@@ -97,32 +99,17 @@ const styles = StyleSheet.create({
   },
   groupTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textSecondary,
     letterSpacing: 0.5,
   },
   groupTotal: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.primary,
   },
   emptyWrap: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginBottom: 8,
   },
 });

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Pressable,
   Animated,
@@ -12,13 +11,19 @@ import {
   Share,
 } from 'react-native';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
+import Paper from '../components/Paper';
 import StatCard from '../components/StatCard';
 import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
 import Sheet from '../components/Sheet';
 import * as haptics from '../utils/haptics';
-import { SUBJECTS } from '../data/subjects';
+import SubjectSheet from '../components/SubjectSheet';
+import CurvedHeader from '../components/CurvedHeader';
+import EmptyState from '../components/EmptyState';
+import Pattern from '../components/Pattern';
+import AnimatedNumber from '../components/AnimatedNumber';
+import { StatusBar } from 'expo-status-bar';
 import { useSessions } from '../context/SessionsContext';
 import { useAuth } from '../context/AuthContext';
 import { usePremium } from '../context/PremiumContext';
@@ -81,6 +86,7 @@ const GOAL_STEPS = [0, 30, 60, 90, 120, 180, 240, 300, 420, 600];
 function GoalsEditor({ visible, goals, onSave, onClose }) {
   const [draft, setDraft] = useState(goals);
   const [saving, setSaving] = useState(false);
+  const [picking, setPicking] = useState(false);
   useEffect(() => {
     if (visible) setDraft(goals);
   }, [visible, goals]);
@@ -111,7 +117,10 @@ function GoalsEditor({ visible, goals, onSave, onClose }) {
     <Sheet visible={visible} onClose={onClose}>
       <Text style={styles.sheetTitle}>Metas semanales</Text>
       <Text style={styles.sheetSub}>Minutos por semana para cada materia</Text>
-      {SUBJECTS.map((subject) => (
+      {Object.keys(draft).length === 0 && (
+        <Text style={styles.sheetSub}>Todavía no tienes metas. Agrega una materia 👇</Text>
+      )}
+      {Object.keys(draft).map((id) => findSubject(id)).map((subject) => (
         <View key={subject.id} style={styles.goalEditRow}>
           <View style={[styles.goalDot, { backgroundColor: subject.color }]} />
           <Text style={styles.goalEditName}>{subject.name}</Text>
@@ -124,9 +133,17 @@ function GoalsEditor({ visible, goals, onSave, onClose }) {
           </PressableScale>
         </View>
       ))}
+      <PressableScale haptic="tap" onPress={() => setPicking(true)} style={styles.addGoal} accessibilityLabel="Agregar meta">
+        <Text style={styles.addGoalText}>＋ Agregar materia</Text>
+      </PressableScale>
       <PressableScale haptic="press" onPress={save} disabled={saving} style={styles.saveButton} accessibilityLabel="Guardar metas">
         <Text style={styles.saveText}>{saving ? 'Guardando…' : 'Guardar metas'}</Text>
       </PressableScale>
+      <SubjectSheet
+        visible={picking}
+        onClose={() => setPicking(false)}
+        onSelect={(id) => id && setDraft((d) => ({ [id]: d[id] || 120, ...d }))}
+      />
     </Sheet>
   );
 }
@@ -204,6 +221,7 @@ export default function StatsScreen() {
   const { isPremium, openPremium, goals, setGoals, notifyPromo, showToast } = usePremium();
   const { profile } = useAuth();
   const [editingGoals, setEditingGoals] = useState(false);
+  const focused = useIsFocused();
   const sessionsCount = sessions.length;
 
   useFocusEffect(
@@ -225,18 +243,26 @@ export default function StatsScreen() {
   const report = weeklyReport(sessions);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Estadísticas</Text>
+    <Paper>
+      {focused && <StatusBar style="light" />}
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <CurvedHeader overlap={sessions.length ? 40 : 0}>
+          <Text style={styles.headerTitle}>Estadísticas</Text>
+          <AnimatedNumber value={total} format={formatMinutes} style={styles.headerValue} />
+          <Text style={styles.headerSub}>de estudio en total</Text>
+        </CurvedHeader>
 
+        <View style={styles.content}>
         {sessions.length === 0 ? (
-          <Text style={styles.empty}>
-            Completa tu primer Pomodoro para ver cuánto y qué estudias 📊
-          </Text>
+          <EmptyState
+            emoji="📊"
+            title="Aún no hay estadísticas"
+            text="Completa tu primer Pomodoro para ver cuánto y qué estudias."
+          />
         ) : (
           <>
-            <FadeInView style={styles.row}>
-              <StatCard label="Tiempo total" number={total} format={formatMinutes} accent />
+            <FadeInView style={[styles.row, styles.overlap]}>
+              <StatCard label="Días activos (7)" number={report.activeDays} format={(n) => `${n}/7`} accent />
               <StatCard label="Sesiones" number={sessions.length} accent />
             </FadeInView>
             <FadeInView delay={60} style={[styles.row, { marginTop: 12 }]}>
@@ -250,6 +276,7 @@ export default function StatsScreen() {
 
             {top && (
               <FadeInView delay={120} style={styles.topCard}>
+                <Pattern variant="grid" />
                 <Text style={styles.topLabel}>Tu materia favorita</Text>
                 <Text style={styles.topName}>{findSubject(top.subjectId).name}</Text>
                 <Text style={styles.topValue}>
@@ -403,6 +430,7 @@ export default function StatsScreen() {
             </PremiumSection>
           </>
         )}
+        </View>
       </ScrollView>
 
       <GoalsEditor
@@ -411,63 +439,70 @@ export default function StatsScreen() {
         onSave={setGoals}
         onClose={() => setEditingGoals(false)}
       />
-    </SafeAreaView>
+    </Paper>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 28, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 16 },
-  empty: { fontSize: 15, color: COLORS.textSecondary, textAlign: 'center', marginTop: 40 },
+  safe: { flex: 1, backgroundColor: 'transparent' },
+  scroll: { paddingBottom: 40 },
+  content: { paddingHorizontal: 20 },
+  overlap: { marginTop: -40 },
+  headerTitle: { fontSize: 15, fontFamily: FONTS.bold, color: COLORS.secondaryGreen },
+  headerValue: { fontSize: 40, fontFamily: FONTS.extrabold, color: COLORS.white, marginTop: 4, fontVariant: ['tabular-nums'] },
+  headerSub: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.white, opacity: 0.75 },
+  addGoal: { marginTop: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: COLORS.background, alignItems: 'center' },
+  addGoalText: { fontSize: 15, fontFamily: FONTS.bold, color: COLORS.primary },
+  title: { fontSize: 28, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginBottom: 16 },
+  empty: { fontFamily: FONTS.regular, fontSize: 15, color: COLORS.textSecondary, textAlign: 'center', marginTop: 40 },
   row: { flexDirection: 'row', gap: 12 },
   section: { marginTop: 20 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 12 },
-  proTag: { fontSize: 12, fontWeight: '800', color: COLORS.gold, marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontFamily: FONTS.semibold, color: COLORS.textPrimary, marginBottom: 12 },
+  proTag: { fontSize: 12, fontFamily: FONTS.extrabold, color: COLORS.gold, marginBottom: 12 },
   card: { backgroundColor: COLORS.white, borderRadius: 20, padding: 16 },
-  topCard: { backgroundColor: COLORS.primary, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 16 },
-  topLabel: { color: COLORS.secondaryGreen, fontWeight: '600', fontSize: 14, marginBottom: 6 },
-  topName: { color: COLORS.white, fontSize: 24, fontWeight: '700' },
-  topValue: { color: COLORS.yellow, fontSize: 16, fontWeight: '700', marginTop: 4 },
+  topCard: { overflow: 'hidden', backgroundColor: COLORS.primary, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 16 },
+  topLabel: { color: COLORS.secondaryGreen, fontFamily: FONTS.semibold, fontSize: 14, marginBottom: 6 },
+  topName: { color: COLORS.white, fontSize: 24, fontFamily: FONTS.bold },
+  topValue: { color: COLORS.yellow, fontSize: 16, fontFamily: FONTS.bold, marginTop: 4 },
   subjectRow: { marginBottom: 14 },
   subjectHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  subjectName: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
-  subjectMinutes: { fontSize: 13, color: COLORS.textSecondary },
+  subjectName: { fontSize: 15, fontFamily: FONTS.semibold, color: COLORS.textPrimary },
+  subjectMinutes: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSecondary },
   barTrack: { height: 10, borderRadius: 5, backgroundColor: COLORS.background, overflow: 'hidden' },
   barFill: { height: 10, borderRadius: 5 },
   chart: { flexDirection: 'row', gap: 6, height: 170 },
   chartCol: { flex: 1, alignItems: 'center' },
-  chartValue: { fontSize: 11, color: COLORS.textSecondary, height: 16 },
+  chartValue: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textSecondary, height: 16 },
   chartTrack: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
   chartBar: { width: '70%', minHeight: 3, backgroundColor: COLORS.secondaryGreen, borderRadius: 6 },
-  chartLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 6 },
-  insight: { fontSize: 15, color: COLORS.textPrimary, marginVertical: 4 },
-  bold: { fontWeight: '700' },
-  bigNumber: { fontSize: 40, fontWeight: '800', color: COLORS.primary },
+  chartLabel: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textSecondary, marginTop: 6 },
+  insight: { fontFamily: FONTS.regular, fontSize: 15, color: COLORS.textPrimary, marginVertical: 4 },
+  bold: { fontFamily: FONTS.bold },
+  bigNumber: { fontSize: 40, fontFamily: FONTS.extrabold, color: COLORS.primary },
   lockedContent: { opacity: 0.18 },
   lockOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  lockIcon: { fontSize: 30 },
-  lockText: { fontSize: 14, fontWeight: '700', color: COLORS.primary, marginTop: 4 },
+  lockIcon: { fontFamily: FONTS.regular, fontSize: 30 },
+  lockText: { fontSize: 14, fontFamily: FONTS.bold, color: COLORS.primary, marginTop: 4 },
   heatmap: { flexDirection: 'row', gap: 4, justifyContent: 'center' },
   heatCol: { gap: 4 },
   heatCell: { width: 20, height: 20, borderRadius: 5 },
-  actionText: { fontSize: 14, fontWeight: '700', color: COLORS.primary, marginBottom: 12 },
+  actionText: { fontSize: 14, fontFamily: FONTS.bold, color: COLORS.primary, marginBottom: 12 },
   reportRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   reportItem: { flex: 1, alignItems: 'center' },
-  reportValue: { fontSize: 18, fontWeight: '700', color: COLORS.primary },
-  reportLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  reportValue: { fontSize: 18, fontFamily: FONTS.bold, color: COLORS.primary },
+  reportLabel: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   shareButton: { height: 46, borderRadius: 14, backgroundColor: COLORS.yellow, alignItems: 'center', justifyContent: 'center' },
-  shareText: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  sheetTitle: { fontSize: 22, fontWeight: '700', color: COLORS.textPrimary, textAlign: 'center' },
-  sheetSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  shareText: { fontSize: 15, fontFamily: FONTS.bold, color: COLORS.textPrimary },
+  sheetTitle: { fontSize: 22, fontFamily: FONTS.bold, color: COLORS.textPrimary, textAlign: 'center' },
+  sheetSub: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 16 },
   goalEditRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 10 },
   goalDot: { width: 10, height: 10, borderRadius: 5 },
-  goalEditName: { flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
-  goalEditValue: { width: 62, textAlign: 'center', fontSize: 15, fontWeight: '700', color: COLORS.primary },
+  goalEditName: { flex: 1, fontSize: 15, fontFamily: FONTS.semibold, color: COLORS.textPrimary },
+  goalEditValue: { width: 62, textAlign: 'center', fontSize: 15, fontFamily: FONTS.bold, color: COLORS.primary },
   stepper: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' },
-  stepperText: { fontSize: 20, fontWeight: '700', color: COLORS.primary },
+  stepperText: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.primary },
   saveButton: { marginTop: 18, height: 52, borderRadius: 16, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
-  saveText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  heatCaption: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 10 },
+  saveText: { color: COLORS.white, fontSize: 16, fontFamily: FONTS.bold },
+  heatCaption: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 10 },
 });

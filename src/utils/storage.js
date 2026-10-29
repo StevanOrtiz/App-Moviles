@@ -13,6 +13,7 @@ const KEYS = {
   pushToken: (uid) => `pushToken:${uid}`,
   promo: (uid) => `promo:${uid}`,
   goalsCelebrated: (uid) => `goalsCelebrated:${uid}`,
+  pomodoroSettings: (uid) => `pomodoroSettings:${uid}`,
   // Claves de la versión sin cuenta (solo para migrar)
   LEGACY_USER: 'user',
   LEGACY_SESSIONS: 'sessions',
@@ -70,6 +71,10 @@ export const savePromoState = (uid, state) => writeJson(KEYS.promo(uid), state);
 export const getCelebratedGoals = (uid) => readJson(KEYS.goalsCelebrated(uid), []);
 export const saveCelebratedGoals = (uid, list) => writeJson(KEYS.goalsCelebrated(uid), list);
 
+// Ajustes de descansos del Pomodoro (src/utils/pomodoro.js)
+export const getPomodoroSettings = (uid) => readJson(KEYS.pomodoroSettings(uid), null);
+export const savePomodoroSettings = (uid, settings) => writeJson(KEYS.pomodoroSettings(uid), settings);
+
 export const getCachedRanking = (subjectId = null) => readJson(rankingKey(subjectId), null);
 export const saveCachedRanking = (ranking, subjectId = null) =>
   writeJson(rankingKey(subjectId), ranking);
@@ -85,6 +90,7 @@ export async function clearUserCache(uid) {
       KEYS.pushToken(uid),
       KEYS.promo(uid),
       KEYS.goalsCelebrated(uid),
+      KEYS.pomodoroSettings(uid),
     ]);
   } catch (e) {
     // sin efecto: la caché se reescribe en el próximo inicio de sesión

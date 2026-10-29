@@ -50,7 +50,8 @@ service cloud.firestore {
           'name', 'universityId', 'universityName',
           'totalMinutes', 'sessions', 'currentStreak', 'bestStreak',
           'lastSessionDate', 'lastSessionId', 'createdAt', 'updatedAt',
-          'subjectMinutes', 'premium', 'premiumSince', 'goals'
+          'subjectMinutes', 'premium', 'premiumSince', 'goals',
+          'careerId', 'favoriteSubjects', 'customSubjects'
         ]);
       }
 
@@ -60,6 +61,16 @@ service cloud.firestore {
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['goals', 'updatedAt'])
           && request.resource.data.goals is map
           && request.resource.data.goals.size() <= 20;
+      }
+
+      // Materias favoritas (lista de ids) y personalizadas ({ "custom-x": "Nombre" }), hasta 20 de cada una
+      function isSubjectPrefsEdit() {
+        let after = request.resource.data;
+        return after.diff(resource.data).affectedKeys().hasOnly(['favoriteSubjects', 'customSubjects', 'updatedAt'])
+          && after.get('favoriteSubjects', []) is list
+          && after.get('favoriteSubjects', []).size() <= 20
+          && after.get('customSubjects', {}) is map
+          && after.get('customSubjects', {}).size() <= 20;
       }
 
       // DEMO: Premium se activa desde el cliente. Cerrar esta regla cuando exista pasarela de pago.
@@ -76,7 +87,8 @@ service cloud.firestore {
         let before = resource.data;
         let sid = newSessionSubject(uid, after.lastSessionId);
         let beforeMap = before.get('subjectMinutes', {});
-        return sid == null
+        // Las materias personalizadas (custom-*) no cuentan en el ranking por materia
+        return sid == null || sid.matches('^custom-.*')
           ? after.get('subjectMinutes', {}) == beforeMap
           : after.subjectMinutes.diff(beforeMap).affectedKeys().hasOnly([sid])
             && after.subjectMinutes[sid] == beforeMap.get(sid, 0) + newSessionDuration(uid, after.lastSessionId);
@@ -85,13 +97,15 @@ service cloud.firestore {
       function profileOk(data) {
         return data.name is string && data.name.size() > 0 && data.name.size() <= 40
           && data.universityId is string && data.universityId.size() > 0 && data.universityId.size() <= 40
-          && data.universityName is string && data.universityName.size() > 0 && data.universityName.size() <= 80;
+          && data.universityName is string && data.universityName.size() > 0 && data.universityName.size() <= 80
+          && (data.get('careerId', null) == null
+              || (data.careerId is string && data.careerId.size() <= 60));
       }
 
       // Editar perfil: solo nombre y universidad
       function isProfileEdit() {
         return request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['name', 'universityId', 'universityName', 'updatedAt']);
+          .hasOnly(['name', 'universityId', 'universityName', 'careerId', 'updatedAt']);
       }
 
       // Registrar sesión: los totales suben exactamente lo de la sesión nueva del mismo batch
@@ -135,7 +149,8 @@ service cloud.firestore {
         && keysOk(request.resource.data)
         && profileOk(request.resource.data)
         && request.resource.data.updatedAt == request.time
-        && (isProfileEdit() || isSessionUpdate(uid) || isPremiumToggle() || isGoalsEdit());
+        && (isProfileEdit() || isSessionUpdate(uid) || isPremiumToggle() || isGoalsEdit()
+            || isSubjectPrefsEdit());
 
       allow delete: if isOwner(uid);
 

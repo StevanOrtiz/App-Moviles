@@ -3,6 +3,14 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import CreateProfileScreen from './src/screens/CreateProfileScreen';
@@ -62,9 +70,20 @@ function RootNavigator() {
 }
 
 export default function App() {
+  // Plus Jakarta Sans (src/theme.js → FONTS). Si falla la carga se usa la fuente del sistema.
+  const [fontsLoaded, fontError] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+
   useEffect(() => {
     initAnalytics().catch(() => {});
   }, []);
+
+  if (!fontsLoaded && !fontError) return <Loading />;
 
   return (
     <SafeAreaProvider>

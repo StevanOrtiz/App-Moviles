@@ -12,6 +12,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage, isValidEmail } from '../../utils/authErrors';
 import styles from './authStyles';
+import Paper from '../../components/Paper';
 
 const MIN_PASSWORD = 6;
 
@@ -43,6 +44,7 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
+    <Paper>
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -102,5 +104,6 @@ export default function RegisterScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </Paper>
   );
 }

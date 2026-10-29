@@ -5,6 +5,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage, isValidEmail } from '../../utils/authErrors';
 import styles from './authStyles';
+import Paper from '../../components/Paper';
 
 export default function ForgotPasswordScreen({ navigation, route }) {
   const { resetPassword } = useAuth();
@@ -30,6 +31,7 @@ export default function ForgotPasswordScreen({ navigation, route }) {
   };
 
   return (
+    <Paper>
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Recuperar contraseña</Text>
@@ -68,5 +70,6 @@ export default function ForgotPasswordScreen({ navigation, route }) {
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+    </Paper>
   );
 }

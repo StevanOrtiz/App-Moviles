@@ -10,12 +10,18 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
+import Paper from '../components/Paper';
 import LeaderboardItem from '../components/LeaderboardItem';
 import FadeInView from '../components/FadeInView';
 import { usePremium } from '../context/PremiumContext';
 import { useSessions } from '../context/SessionsContext';
-import SubjectPicker from '../components/SubjectPicker';
+import SubjectSheet from '../components/SubjectSheet';
+import Segmented from '../components/Segmented';
+import PressableScale from '../components/PressableScale';
+import EmptyState from '../components/EmptyState';
+import Pattern from '../components/Pattern';
+import { Ionicons } from '@expo/vector-icons';
 import { findSubject } from '../data/subjects';
 import { useAuth } from '../context/AuthContext';
 import { getRanking } from '../services/rankingService';
@@ -31,6 +37,7 @@ export default function RankingScreen() {
   const [refreshing, setRefreshing] = useState(false);
   // Filtro opcional: null = ranking general (todas las materias)
   const [subjectId, setSubjectId] = useState(null);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const lastLoad = useRef(0);
 
@@ -74,33 +81,43 @@ export default function RankingScreen() {
   const topUniversity = universitiesRanked[0];
 
   return (
+    <Paper>
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>Ranking</Text>
-        <View style={styles.tabsRow}>
-          <Pressable
-            style={[styles.tabButton, tab === 'students' && styles.tabButtonActive]}
-            onPress={() => setTab('students')}
-            accessibilityLabel="Estudiantes"
-          >
-            <Text style={[styles.tabText, tab === 'students' && styles.tabTextActive]}>
-              Estudiantes
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.tabButton, tab === 'universities' && styles.tabButtonActive]}
-            onPress={() => setTab('universities')}
-            accessibilityLabel="Universidades"
-          >
-            <Text style={[styles.tabText, tab === 'universities' && styles.tabTextActive]}>
-              Universidades
-            </Text>
-          </Pressable>
-        </View>
+        <Segmented
+          style={styles.tabsRow}
+          options={[
+            { key: 'students', label: 'Estudiantes' },
+            { key: 'universities', label: 'Universidades' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
         {tab === 'students' && (
-          <View style={styles.filter}>
-            <SubjectPicker value={subjectId} onChange={changeSubject} noneLabel="Todas" />
-          </View>
+          <PressableScale
+            haptic="tap"
+            scaleTo={0.98}
+            onPress={() => setFilterOpen(true)}
+            style={styles.filter}
+            accessibilityLabel="Filtrar por materia"
+          >
+            <Ionicons
+              name={subjectId ? findSubject(subjectId).icon : 'funnel-outline'}
+              size={16}
+              color={subjectId ? findSubject(subjectId).color : COLORS.primary}
+            />
+            <Text style={styles.filterText} numberOfLines={1}>
+              {subjectId ? findSubject(subjectId).name : 'Todas las materias'}
+            </Text>
+            {subjectId ? (
+              <Pressable onPress={() => changeSubject(null)} hitSlop={10} accessibilityLabel="Quitar filtro">
+                <Ionicons name="close-circle" size={18} color={COLORS.textSecondary} />
+              </Pressable>
+            ) : (
+              <Ionicons name="chevron-down" size={16} color={COLORS.textSecondary} />
+            )}
+          </PressableScale>
         )}
       </View>
 
@@ -116,11 +133,11 @@ export default function RankingScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           {(tab === 'students' ? students : universitiesRanked).length === 0 ? (
-            <Text style={styles.empty}>
-              {subjectId
-                ? `Nadie ha estudiado ${findSubject(subjectId).name} todavía. ¡Sé el primero!`
-                : 'Todavía no hay datos en el ranking. ¡Completa un Pomodoro!'}
-            </Text>
+            <EmptyState
+              emoji="🏆"
+              title={subjectId ? `Nadie ha estudiado ${findSubject(subjectId).name}` : 'El ranking está vacío'}
+              text={subjectId ? '¡Sé el primero en aparecer aquí!' : 'Completa un Pomodoro para aparecer en el ranking.'}
+            />
           ) : tab === 'students' ? (
             students.map((s, index) => (
               <FadeInView key={s.id} delay={Math.min(index, 12) * 40}>
@@ -138,6 +155,7 @@ export default function RankingScreen() {
           ) : (
             <>
               <View style={styles.overallCard}>
+                <Pattern variant="dots" />
                 <Text style={styles.overallLabel}>🏆 Universidad más comprometida</Text>
                 <Text style={styles.overallName}>{topUniversity.name}</Text>
                 <Text style={styles.overallValue}>{formatMinutes(topUniversity.totalMinutes)}</Text>
@@ -159,19 +177,43 @@ export default function RankingScreen() {
           )}
         </ScrollView>
       )}
+      <SubjectSheet
+        mode="filter"
+        visible={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        value={subjectId}
+        onSelect={changeSubject}
+      />
     </SafeAreaView>
+    </Paper>
   );
 }
 
 const styles = StyleSheet.create({
   filter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     marginBottom: 8,
+    maxWidth: '100%',
+  },
+  filterText: {
+    fontSize: 14,
+    fontFamily: FONTS.semibold,
+    color: COLORS.textPrimary,
+    flexShrink: 1,
   },
   loader: {
     marginTop: 48,
   },
   offline: {
     fontSize: 13,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -179,13 +221,14 @@ const styles = StyleSheet.create({
   },
   empty: {
     fontSize: 15,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: 32,
   },
   safe: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: 'transparent',
   },
   header: {
     paddingHorizontal: 20,
@@ -193,7 +236,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 16,
   },
@@ -215,7 +258,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textSecondary,
   },
   tabTextActive: {
@@ -226,6 +269,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   overallCard: {
+    overflow: 'hidden',
     backgroundColor: COLORS.primary,
     borderRadius: 20,
     padding: 20,
@@ -235,23 +279,23 @@ const styles = StyleSheet.create({
   overallLabel: {
     fontSize: 14,
     color: COLORS.secondaryGreen,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     marginBottom: 8,
   },
   overallName: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.white,
     marginBottom: 4,
   },
   overallValue: {
     fontSize: 30,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.yellow,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
     marginBottom: 12,
   },

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import { formatMinutes } from '../utils/formatTime';
 
 const MEDALS = { 1: '🏆', 2: '🥈', 3: '🥉' };
@@ -82,10 +82,11 @@ const styles = StyleSheet.create({
   },
   medal: {
     fontSize: 24,
+    fontFamily: FONTS.regular,
   },
   position: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textSecondary,
   },
   info: {
@@ -94,11 +95,12 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   subtitle: {
     fontSize: 13,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
@@ -107,11 +109,12 @@ const styles = StyleSheet.create({
   },
   minutes: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.primary,
   },
   streak: {
     fontSize: 12,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginTop: 2,
   },

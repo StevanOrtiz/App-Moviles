@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Switch, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import { describeDays, formatReminderTime } from '../utils/reminders';
 
 export default function ReminderItem({ reminder, onToggle, onEdit, onDelete }) {
@@ -59,17 +59,18 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.primary,
   },
   title: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
     marginTop: 2,
   },
   days: {
     fontSize: 13,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginTop: 4,
   },

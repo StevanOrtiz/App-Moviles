@@ -56,6 +56,13 @@ export const PROMOS = [
     body: 'Con Premium programas hasta 10 recordatorios de estudio.',
   },
   {
+    id: 'custom_goals',
+    event: 'custom_subjects',
+    emoji: '✏️',
+    title: 'Ya tienes tus propias materias',
+    body: 'Con Premium les pones metas semanales y ves cuánto avanzas en cada una.',
+  },
+  {
     id: 'weekly_report',
     event: 'app_open',
     emoji: '📤',

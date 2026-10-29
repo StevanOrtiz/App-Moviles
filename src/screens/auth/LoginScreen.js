@@ -12,6 +12,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage, isValidEmail } from '../../utils/authErrors';
 import styles from './authStyles';
+import Paper from '../../components/Paper';
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
@@ -36,6 +37,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
+    <Paper>
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -92,5 +94,6 @@ export default function LoginScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </Paper>
   );
 }

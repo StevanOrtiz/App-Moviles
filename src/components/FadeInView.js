@@ -1,13 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
+import useScreenFocus from '../hooks/useScreenFocus';
 import { NATIVE } from '../utils/animation';
 import useReducedMotion from '../hooks/useReducedMotion';
 
 // Aparece con fundido y un leve desplazamiento hacia arriba. Se repite al volver a la pestaña.
 export default function FadeInView({ children, delay = 0, distance = 12, style, replayOnFocus = true }) {
   const anim = useRef(new Animated.Value(0)).current;
-  const focused = useIsFocused();
+  const focused = useScreenFocus();
   const reduced = useReducedMotion();
 
   useEffect(() => {

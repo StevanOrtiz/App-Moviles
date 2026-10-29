@@ -13,8 +13,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import Confetti from '../components/Confetti';
+import Pattern from '../components/Pattern';
+import Blob from '../components/Blob';
 import PressableScale from '../components/PressableScale';
 import { usePremium } from '../context/PremiumContext';
 import { NATIVE, SPRING, SPRING_SOFT } from '../utils/animation';
@@ -250,6 +252,8 @@ function PremiumContent({ onClose }) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <Pattern variant="dots" color={COLORS.yellow} opacity={0.08} />
+      <Blob size={320} color={COLORS.gold} opacity={0.12} style={{ top: -120, right: -120 }} />
       <ScrollView contentContainerStyle={styles.content}>
         <PressableScale style={styles.close} onPress={onClose} haptic="selection" accessibilityLabel="Cerrar">
           <Text style={styles.closeText}>✕</Text>
@@ -375,7 +379,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeText: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  closeText: { color: COLORS.white, fontSize: 15, fontFamily: FONTS.bold },
   hero: { alignItems: 'center', marginBottom: 20 },
   halo: {
     position: 'absolute',
@@ -385,12 +389,12 @@ const styles = StyleSheet.create({
     borderRadius: 95,
     backgroundColor: COLORS.gold,
   },
-  crown: { fontSize: 84, marginTop: 10 },
+  crown: { fontFamily: FONTS.regular, fontSize: 84, marginTop: 10 },
   titleWrap: { overflow: 'hidden', marginTop: 8, paddingHorizontal: 4 },
   titleShine: { position: 'absolute', top: -20, bottom: -20, width: 30, backgroundColor: 'rgba(255,255,255,0.35)' },
-  heroTitle: { color: COLORS.white, fontSize: 30, fontWeight: '800', textAlign: 'center' },
+  heroTitle: { color: COLORS.white, fontSize: 30, fontFamily: FONTS.extrabold, textAlign: 'center' },
   heroGold: { color: COLORS.yellow },
-  heroSub: { color: COLORS.white, opacity: 0.85, fontSize: 15, textAlign: 'center', marginTop: 6 },
+  heroSub: { color: COLORS.white, opacity: 0.85, fontFamily: FONTS.regular, fontSize: 15, textAlign: 'center', marginTop: 6 },
   benefit: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -402,11 +406,11 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
-  benefitIcon: { fontSize: 26 },
-  benefitTitle: { color: COLORS.yellow, fontSize: 15, fontWeight: '700' },
-  benefitText: { color: COLORS.white, opacity: 0.85, fontSize: 13, marginTop: 2 },
+  benefitIcon: { fontFamily: FONTS.regular, fontSize: 26 },
+  benefitTitle: { color: COLORS.yellow, fontSize: 15, fontFamily: FONTS.bold },
+  benefitText: { color: COLORS.white, opacity: 0.85, fontFamily: FONTS.regular, fontSize: 13, marginTop: 2 },
   soon: { backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  soonText: { color: COLORS.white, fontSize: 10, fontWeight: '800' },
+  soonText: { color: COLORS.white, fontSize: 10, fontFamily: FONTS.extrabold },
   table: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 16,
@@ -415,10 +419,10 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7 },
-  tableHead: { fontWeight: '800', fontSize: 13 },
-  tableFeature: { flex: 1, color: COLORS.white, fontSize: 13 },
+  tableHead: { fontFamily: FONTS.extrabold, fontSize: 13 },
+  tableFeature: { flex: 1, color: COLORS.white, fontFamily: FONTS.regular, fontSize: 13 },
   tableCol: { width: 70, alignItems: 'center', color: COLORS.white, textAlign: 'center' },
-  cellText: { color: COLORS.secondaryGreen, fontWeight: '800', fontSize: 15 },
+  cellText: { color: COLORS.secondaryGreen, fontFamily: FONTS.extrabold, fontSize: 15 },
   cellNo: { color: 'rgba(255,255,255,0.35)' },
   segment: {
     flexDirection: 'row',
@@ -435,12 +439,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.yellow,
   },
   segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 10 },
-  segmentText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
+  segmentText: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 15 },
   segmentTextActive: { color: COLORS.primary },
-  segmentBadge: { color: COLORS.secondaryGreen, fontSize: 10, fontWeight: '800', marginTop: 2 },
+  segmentBadge: { color: COLORS.secondaryGreen, fontSize: 10, fontFamily: FONTS.extrabold, marginTop: 2 },
   priceBox: { alignItems: 'center', marginVertical: 16 },
-  price: { color: COLORS.white, fontSize: 36, fontWeight: '800' },
-  per: { color: COLORS.white, opacity: 0.75, fontSize: 13, marginTop: 2 },
+  price: { color: COLORS.white, fontSize: 36, fontFamily: FONTS.extrabold },
+  per: { color: COLORS.white, opacity: 0.75, fontFamily: FONTS.regular, fontSize: 13, marginTop: 2 },
   cta: {
     height: 58,
     borderRadius: 18,
@@ -451,9 +455,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gold,
     overflow: 'hidden',
   },
-  ctaText: { color: COLORS.primary, fontSize: 18, fontWeight: '800' },
+  ctaText: { color: COLORS.primary, fontSize: 18, fontFamily: FONTS.extrabold },
   ctaShine: { position: 'absolute', top: -30, bottom: -30, left: 0, width: 40, backgroundColor: 'rgba(255,255,255,0.45)' },
-  demo: { color: COLORS.white, opacity: 0.6, fontSize: 12, textAlign: 'center', marginTop: 12 },
+  demo: { color: COLORS.white, opacity: 0.6, fontFamily: FONTS.regular, fontSize: 12, textAlign: 'center', marginTop: 12 },
   cancel: { color: COLORS.white, opacity: 0.7, textAlign: 'center', marginTop: 18, textDecorationLine: 'underline' },
   error: { color: '#FFB4A8', textAlign: 'center', marginTop: 12 },
   welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
@@ -468,9 +472,9 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: COLORS.gold,
   },
-  checkMark: { color: COLORS.primary, fontSize: 56, fontWeight: '800' },
+  checkMark: { color: COLORS.primary, fontSize: 56, fontFamily: FONTS.extrabold },
   unlockedList: { alignSelf: 'stretch', marginVertical: 22 },
   unlockedRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-  unlockedCheck: { color: COLORS.secondaryGreen, fontSize: 18, fontWeight: '800' },
-  unlockedText: { color: COLORS.white, fontSize: 16, fontWeight: '600' },
+  unlockedCheck: { color: COLORS.secondaryGreen, fontSize: 18, fontFamily: FONTS.extrabold },
+  unlockedText: { color: COLORS.white, fontSize: 16, fontFamily: FONTS.semibold },
 });

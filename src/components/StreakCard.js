@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
-import { COLORS } from '../theme';
+import useScreenFocus from '../hooks/useScreenFocus';
+import { COLORS, FONTS } from '../theme';
 import AnimatedNumber from './AnimatedNumber';
 import PressableScale from './PressableScale';
 import { NATIVE, SPRING_SOFT } from '../utils/animation';
@@ -26,7 +26,7 @@ function DayDot({ completed, index, focused }) {
 }
 
 export default function StreakCard({ streak, week, premium, shieldUsed, onShieldPress }) {
-  const focused = useIsFocused();
+  const focused = useScreenFocus();
   const flicker = useRef(new Animated.Value(0)).current;
 
   // La llama "respira" mientras hay racha
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   shieldText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   premiumCard: {
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 20,
     padding: 18,
-    shadowColor: '#000',
+    shadowColor: COLORS.textPrimary,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -129,14 +129,16 @@ const styles = StyleSheet.create({
   },
   flame: {
     fontSize: 36,
+    fontFamily: FONTS.regular,
   },
   streakValue: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   streakLabel: {
     fontSize: 14,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
   weekRow: {
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
   },
   dayDot: {
     width: 28,
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
   },
   dayCheck: {
     color: COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     fontSize: 13,
   },
 });

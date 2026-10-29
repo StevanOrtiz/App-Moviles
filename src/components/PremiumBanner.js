@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import { NATIVE } from '../utils/animation';
+import Pattern from './Pattern';
 
 // Banner dorado con brillo que cruza la tarjeta y corona que late: invita a hacerse Premium
 export default function PremiumBanner({ onPress }) {
@@ -42,6 +43,7 @@ export default function PremiumBanner({ onPress }) {
   return (
     <Pressable onPress={onPress} accessibilityLabel="Hazte Premium">
       <View style={styles.card}>
+        <Pattern variant="dots" color={COLORS.yellow} opacity={0.12} />
         <Animated.Text style={[styles.crown, { transform: [{ scale }, { rotate }] }]}>
           👑
         </Animated.Text>
@@ -75,17 +77,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  crown: { fontSize: 34 },
+  crown: { fontFamily: FONTS.regular, fontSize: 34 },
   texts: { flex: 1 },
-  title: { color: COLORS.yellow, fontSize: 17, fontWeight: '800' },
-  subtitle: { color: COLORS.white, fontSize: 12, marginTop: 2, opacity: 0.9 },
+  title: { color: COLORS.yellow, fontSize: 17, fontFamily: FONTS.extrabold },
+  subtitle: { color: COLORS.white, fontFamily: FONTS.regular, fontSize: 12, marginTop: 2, opacity: 0.9 },
   cta: {
     backgroundColor: COLORS.yellow,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
   },
-  ctaText: { color: COLORS.primary, fontWeight: '800', fontSize: 14 },
+  ctaText: { color: COLORS.primary, fontFamily: FONTS.extrabold, fontSize: 14 },
   shine: {
     position: 'absolute',
     top: -30,

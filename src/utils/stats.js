@@ -1,4 +1,5 @@
 // Cálculos de estadísticas a partir de las sesiones. Funciones puras (sin React ni Firebase).
+import { resolveSubjectId } from '../data/subjects.js';
 // `sessions`: [{ id, date: "YYYY-MM-DD", duration, time: "10:30 AM", subjectId? }]
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -24,7 +25,7 @@ export function statsBySubject(sessions) {
   const total = totalMinutes(sessions);
   const map = new Map();
   sessions.forEach((s) => {
-    const key = s.subjectId || null;
+    const key = resolveSubjectId(s.subjectId);
     const current = map.get(key) || { subjectId: key, minutes: 0, sessions: 0 };
     current.minutes += s.duration;
     current.sessions += 1;
@@ -149,9 +150,8 @@ export function weeklyGoalProgress(sessions, goals = {}, now = new Date()) {
   const end = toISO(now);
   const minutes = new Map();
   sessions.forEach((s) => {
-    if (s.subjectId && s.date >= start && s.date <= end) {
-      minutes.set(s.subjectId, (minutes.get(s.subjectId) || 0) + s.duration);
-    }
+    const id = resolveSubjectId(s.subjectId);
+    if (id && s.date >= start && s.date <= end) minutes.set(id, (minutes.get(id) || 0) + s.duration);
   });
   return Object.entries(goals)
     .filter(([, goal]) => goal > 0)

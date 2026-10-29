@@ -23,9 +23,9 @@ const s = (date, duration, time = '10:30 AM', subjectId) => ({
 });
 
 const sessions = [
-  s('2026-10-26', 25, '10:30 AM', 'calculo'),
-  s('2026-10-26', 25, '8:00 PM', 'calculo'),
-  s('2026-10-27', 50, '8:15 PM', 'fisica'),
+  s('2026-10-26', 25, '10:30 AM', 'calculo-i'),
+  s('2026-10-26', 25, '8:00 PM', 'calculo-i'),
+  s('2026-10-27', 50, '8:15 PM', 'fisica-mecanica'),
   s('2026-10-28', 25, '12:05 AM'),
 ];
 const now = new Date(2026, 9, 28, 12);
@@ -36,8 +36,8 @@ describe('statsBySubject', () => {
     assert.deepEqual(
       result.map((r) => [r.subjectId, r.minutes, r.sessions]),
       [
-        ['calculo', 50, 2],
-        ['fisica', 50, 1],
+        ['calculo-i', 50, 2],
+        ['fisica-mecanica', 50, 1],
         [null, 25, 1],
       ],
     );
@@ -49,7 +49,7 @@ describe('statsBySubject', () => {
   });
 
   test('topSubject ignora las sesiones sin materia', () => {
-    assert.equal(topSubject(sessions).subjectId, 'calculo');
+    assert.equal(topSubject(sessions).subjectId, 'calculo-i');
     assert.equal(topSubject([s('2026-10-28', 25)]), null);
   });
 });
@@ -114,13 +114,13 @@ describe('metas e informe semanal', async () => {
   });
 
   test('progreso de metas solo cuenta esta semana y por materia', () => {
-    const data = [...sessions, s('2026-10-20', 50, '9:00 AM', 'calculo')];
-    const result = weeklyGoalProgress(data, { calculo: 100, fisica: 50, ingles: 0 }, now);
+    const data = [...sessions, s('2026-10-20', 50, '9:00 AM', 'calculo-i')];
+    const result = weeklyGoalProgress(data, { 'calculo-i': 100, 'fisica-mecanica': 50, ingles: 0 }, now);
     assert.deepEqual(
       result.map((r) => [r.subjectId, r.minutes, r.done]),
       [
-        ['fisica', 50, true],
-        ['calculo', 50, false],
+        ['fisica-mecanica', 50, true],
+        ['calculo-i', 50, false],
       ],
     );
     assert.equal(result[1].progress, 0.5);
@@ -131,7 +131,17 @@ describe('metas e informe semanal', async () => {
     assert.equal(report.minutes, 125);
     assert.equal(report.sessions, 4);
     assert.equal(report.activeDays, 3);
-    assert.equal(report.topSubjectId, 'calculo');
+    assert.equal(report.topSubjectId, 'calculo-i');
     assert.equal(report.to, '2026-10-28');
+  });
+});
+
+describe('ids antiguos', () => {
+  test('las sesiones con ids de ejemplo se suman a la materia del catálogo', () => {
+    const data = [s('2026-10-27', 25, '9:00 AM', 'calculo'), s('2026-10-28', 25, '9:00 AM', 'calculo-i')];
+    assert.deepEqual(
+      statsBySubject(data).map((r) => [r.subjectId, r.minutes]),
+      [['calculo-i', 50]],
+    );
   });
 });

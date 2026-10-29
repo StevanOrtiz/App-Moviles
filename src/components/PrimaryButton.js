@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import PressableScale from './PressableScale';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 
 export default function PrimaryButton({ title, onPress, disabled, accessibilityLabel }) {
   return (
@@ -43,6 +43,6 @@ const styles = StyleSheet.create({
   text: {
     color: COLORS.white,
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 });

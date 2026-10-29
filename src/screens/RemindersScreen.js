@@ -15,12 +15,14 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
+import Paper from '../components/Paper';
 import PrimaryButton from '../components/PrimaryButton';
 import SecondaryButton from '../components/SecondaryButton';
 import ReminderItem from '../components/ReminderItem';
 import { useReminders } from '../context/RemindersContext';
 import { useSessions } from '../context/SessionsContext';
+import EmptyState from '../components/EmptyState';
 import { MAX_REMINDERS } from '../services/reminderService';
 import { FREE_REMINDER_LIMIT, usePremium } from '../context/PremiumContext';
 import { sendTestNotification } from '../services/notificationService';
@@ -246,6 +248,7 @@ export default function RemindersScreen() {
   ) : null;
 
   return (
+    <Paper>
     <SafeAreaView style={styles.safe}>
       <FlatList
         data={reminders}
@@ -257,9 +260,12 @@ export default function RemindersScreen() {
           loading ? (
             <ActivityIndicator color={COLORS.primary} style={styles.loader} />
           ) : (
-            <Text style={styles.emptyText}>
-              Aún no tienes recordatorios. Crea el primero para estudiar todos los días.
-            </Text>
+            <EmptyState
+              compact
+              emoji="⏰"
+              title="Sin recordatorios todavía"
+              text="Crea el primero para estudiar todos los días a la misma hora."
+            />
           )
         }
         renderItem={({ item }) => (
@@ -343,13 +349,14 @@ export default function RemindersScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+    </Paper>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: 20,
@@ -357,11 +364,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginTop: 4,
     marginBottom: 16,
@@ -381,11 +389,12 @@ const styles = StyleSheet.create({
   permissionTitle: {
     color: COLORS.white,
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   permissionText: {
     color: '#D7E6E3',
     fontSize: 14,
+    fontFamily: FONTS.regular,
     lineHeight: 20,
   },
   listHeader: {
@@ -396,7 +405,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
   },
   addButton: {
@@ -413,22 +422,25 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     color: COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     fontSize: 14,
   },
   hint: {
     fontSize: 13,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginBottom: 12,
   },
   emptyText: {
     fontSize: 14,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     lineHeight: 20,
   },
   errorText: {
     color: COLORS.error,
     fontSize: 14,
+    fontFamily: FONTS.regular,
     marginBottom: 8,
   },
   loader: {
@@ -442,12 +454,13 @@ const styles = StyleSheet.create({
   },
   tokenLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
     marginBottom: 6,
   },
   tokenValue: {
     fontSize: 12,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
   modalOverlay: {
@@ -466,13 +479,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 8,
   },
   label: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
     marginTop: 12,
     marginBottom: 8,
@@ -482,6 +495,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     fontSize: 16,
+    fontFamily: FONTS.regular,
     color: COLORS.textPrimary,
   },
   timeRow: {
@@ -492,13 +506,14 @@ const styles = StyleSheet.create({
   },
   timeSeparator: {
     fontSize: 36,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 20,
   },
   timePreview: {
     textAlign: 'center',
     fontSize: 14,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginTop: 4,
   },
@@ -508,13 +523,14 @@ const styles = StyleSheet.create({
   },
   stepperValue: {
     fontSize: 40,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     minWidth: 70,
     textAlign: 'center',
   },
   stepperLabel: {
     fontSize: 12,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
   daysRow: {
@@ -533,7 +549,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   dayText: {
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textSecondary,
   },
   dayTextSelected: {
@@ -545,7 +561,7 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.primary,
   },
 });

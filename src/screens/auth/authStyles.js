@@ -1,10 +1,10 @@
 import { StyleSheet } from 'react-native';
-import { COLORS } from '../../theme';
+import { COLORS, FONTS } from '../../theme';
 
 export default StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: 'transparent',
   },
   content: {
     flexGrow: 1,
@@ -14,18 +14,19 @@ export default StyleSheet.create({
   },
   logo: {
     fontSize: 36,
-    fontWeight: '800',
+    fontFamily: FONTS.extrabold,
     color: COLORS.primary,
     marginBottom: 8,
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginBottom: 24,
     lineHeight: 21,
@@ -33,12 +34,14 @@ export default StyleSheet.create({
   error: {
     color: COLORS.error,
     fontSize: 14,
+    fontFamily: FONTS.regular,
     marginTop: 8,
     marginBottom: 4,
   },
   success: {
     color: COLORS.primary,
     fontSize: 14,
+    fontFamily: FONTS.regular,
     marginTop: 8,
     marginBottom: 4,
   },
@@ -52,7 +55,7 @@ export default StyleSheet.create({
   },
   linkText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.primary,
   },
 });

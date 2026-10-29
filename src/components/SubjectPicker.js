@@ -1,34 +1,24 @@
 import React from 'react';
 import { ScrollView, Text, StyleSheet } from 'react-native';
-import PressableScale from './PressableScale';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../theme';
-import { NO_SUBJECT, SUBJECTS } from '../data/subjects';
+import PressableScale from './PressableScale';
+import { COLORS, FONTS } from '../theme';
+import { findSubject } from '../data/subjects';
 
-// Chips horizontales para elegir materia. `allowNone` agrega la opción "Sin materia" / "Todas".
-export default function SubjectPicker({
-  value,
-  onChange,
-  disabled,
-  noneLabel = NO_SUBJECT.name,
-  allowNone = true,
-}) {
-  const options = allowNone ? [{ ...NO_SUBJECT, name: noneLabel }, ...SUBJECTS] : SUBJECTS;
-
+// Atajos de materias (favoritas o recientes) como chips horizontales
+export default function SubjectPicker({ ids, value, onChange, disabled }) {
+  if (!ids || ids.length === 0) return null;
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
-    >
-      {options.map((s) => {
-        const active = (value ?? null) === s.id;
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      {ids.map((id) => {
+        const s = findSubject(id);
+        const active = value === id;
         return (
           <PressableScale
-            key={s.id ?? 'none'}
+            key={id}
             haptic="selection"
             disabled={disabled}
-            onPress={() => onChange(s.id)}
+            onPress={() => onChange(active ? null : id)}
             accessibilityLabel={s.name}
             style={[
               styles.chip,
@@ -36,8 +26,10 @@ export default function SubjectPicker({
               disabled && !active && styles.chipDisabled,
             ]}
           >
-            <Ionicons name={s.icon} size={16} color={active ? COLORS.white : s.color} />
-            <Text style={[styles.text, active && styles.textActive]}>{s.name}</Text>
+            <Ionicons name={s.icon} size={14} color={active ? COLORS.white : s.color} />
+            <Text style={[styles.text, active && styles.textActive]} numberOfLines={1}>
+              {s.name}
+            </Text>
           </PressableScale>
         );
       })}
@@ -51,14 +43,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
     backgroundColor: COLORS.white,
     borderWidth: 1.5,
     borderColor: COLORS.white,
+    maxWidth: 200,
   },
   chipDisabled: { opacity: 0.45 },
-  text: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
+  text: { fontSize: 13, fontFamily: FONTS.semibold, color: COLORS.textPrimary },
   textActive: { color: COLORS.white },
 });

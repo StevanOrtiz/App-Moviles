@@ -10,8 +10,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from '../components/PrimaryButton';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
+import Paper from '../components/Paper';
 import { UNIVERSITIES, findUniversityByName } from '../data/universities';
+import { CAREERS } from '../data/subjects';
 import { useAuth } from '../context/AuthContext';
 import { createProfile, updateProfile } from '../services/userService';
 import { getLegacyData } from '../utils/storage';
@@ -22,6 +24,7 @@ export default function CreateProfileScreen({ initialProfile, onSaved, onCancel 
   const { user, signOut } = useAuth();
   const [name, setName] = useState(initialProfile?.name || '');
   const [universityId, setUniversityId] = useState(initialProfile?.universityId || '');
+  const [careerId, setCareerId] = useState(initialProfile?.careerId || null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,7 +47,7 @@ export default function CreateProfileScreen({ initialProfile, onSaved, onCancel 
     setSaving(true);
     setError('');
     try {
-      const data = { name: name.trim(), universityId };
+      const data = { name: name.trim(), universityId, careerId };
       if (isEditing) await updateProfile(user.uid, initialProfile, data);
       else await createProfile(user.uid, data);
       // Al crear, App.js avanza cuando Firestore confirma el perfil
@@ -56,6 +59,7 @@ export default function CreateProfileScreen({ initialProfile, onSaved, onCancel 
   };
 
   return (
+    <Paper>
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{isEditing ? 'Editar perfil' : 'Crear tu perfil'}</Text>
@@ -91,6 +95,24 @@ export default function CreateProfileScreen({ initialProfile, onSaved, onCancel 
           })}
         </View>
 
+        <Text style={styles.fieldLabel}>¿Qué estudias? (opcional)</Text>
+        <Text style={styles.fieldHint}>Así te mostramos primero las materias de tu carrera.</Text>
+        <View style={styles.careers}>
+          {CAREERS.map((career) => {
+            const selected = career.id === careerId;
+            return (
+              <Pressable
+                key={career.id}
+                onPress={() => setCareerId(selected ? null : career.id)}
+                style={[styles.careerChip, selected && styles.careerChipSelected]}
+                accessibilityLabel={career.name}
+              >
+                <Text style={[styles.careerText, selected && styles.careerTextSelected]}>{career.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         {!!error && <Text style={styles.error}>{error}</Text>}
 
         <PrimaryButton
@@ -111,13 +133,14 @@ export default function CreateProfileScreen({ initialProfile, onSaved, onCancel 
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+    </Paper>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: 24,
@@ -125,13 +148,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 24,
   },
   fieldLabel: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
     marginBottom: 8,
     marginTop: 8,
@@ -141,6 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     fontSize: 16,
+    fontFamily: FONTS.regular,
     color: COLORS.textPrimary,
     marginBottom: 8,
   },
@@ -162,15 +186,49 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 15,
+    fontFamily: FONTS.regular,
     color: COLORS.textPrimary,
     flexShrink: 1,
   },
   optionTextSelected: {
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
+  },
+  fieldHint: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
+    marginBottom: 10,
+  },
+  careers: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
+  },
+  careerChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.white,
+  },
+  careerChipSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.goldSoft,
+  },
+  careerText: {
+    fontSize: 14,
+    fontFamily: FONTS.semibold,
+    color: COLORS.textPrimary,
+  },
+  careerTextSelected: {
+    color: COLORS.primary,
   },
   error: {
     color: COLORS.error,
     fontSize: 14,
+    fontFamily: FONTS.regular,
     marginBottom: 12,
   },
   secondaryLink: {
@@ -179,7 +237,7 @@ const styles = StyleSheet.create({
   },
   secondaryLinkText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.primary,
   },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import AnimatedNumber from './AnimatedNumber';
 
 // Con `number` (y opcionalmente `format`) el valor se anima contando hasta el número
@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 20,
     padding: 18,
-    shadowColor: '#000',
+    shadowColor: COLORS.textPrimary,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -32,12 +32,13 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 4,
   },
   label: {
     fontSize: 14,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
 });

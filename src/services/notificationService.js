@@ -203,7 +203,8 @@ export function cancelStreakReminder() {
 // ---------- Alarma del Pomodoro ----------
 
 // Avisa cuando termina el Pomodoro aunque la app esté en segundo plano.
-export async function schedulePomodoroAlarm(seconds) {
+// isBreak: el texto cambia cuando lo que termina es un descanso
+export async function schedulePomodoroAlarm(seconds, { isBreak = false } = {}) {
   if (!NOTIFICATIONS_SUPPORTED || seconds < 1) return;
   try {
     const { status } = await Notifications.getPermissionsAsync();
@@ -211,8 +212,10 @@ export async function schedulePomodoroAlarm(seconds) {
     await Notifications.scheduleNotificationAsync({
       identifier: POMODORO_ALARM_ID,
       content: {
-        title: '¡Pomodoro terminado! 🎉',
-        body: 'Completaste tu sesión de estudio. Tu racha sigue viva.',
+        title: isBreak ? '¡Descanso terminado! ⏰' : '¡Pomodoro terminado! 🎉',
+        body: isBreak
+          ? 'Hora de volver a enfocarte. ¡Tú puedes!'
+          : 'Completaste tu sesión de estudio. Tu racha sigue viva.',
         sound: 'default',
         data: { kind: 'pomodoro', screen: 'Inicio' },
       },

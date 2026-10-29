@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TextInput, StyleSheet } from 'react-native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 
 export default function FormInput({ label, ...inputProps }) {
   return (
@@ -19,7 +19,7 @@ export default function FormInput({ label, ...inputProps }) {
 const styles = StyleSheet.create({
   label: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
     marginBottom: 8,
     marginTop: 8,
@@ -29,6 +29,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     fontSize: 16,
+    fontFamily: FONTS.regular,
     color: COLORS.textPrimary,
     marginBottom: 8,
   },

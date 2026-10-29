@@ -3,7 +3,9 @@ import {
   Animated,
   Dimensions,
   Easing,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -15,8 +17,9 @@ import { NATIVE, SPRING_SOFT } from '../utils/animation';
 const HEIGHT = Dimensions.get('window').height;
 
 // Hoja inferior estilo iOS: el fondo se oscurece, la tarjeta sube con resorte y se cierra
-// tocando fuera o arrastrándola hacia abajo. `overlay` se dibuja encima (por ejemplo, confeti).
-export default function Sheet({ visible, onClose, children, dismissable = true, overlay }) {
+// tocando fuera o arrastrándola hacia abajo desde el borde superior. `height` (0-1) fija su alto.
+// `overlay` se dibuja encima (por ejemplo, confeti).
+export default function Sheet({ visible, onClose, children, dismissable = true, overlay, height }) {
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(0)).current;
   const drag = useRef(new Animated.Value(0)).current;
@@ -64,16 +67,21 @@ export default function Sheet({ visible, onClose, children, dismissable = true, 
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={close} statusBarTranslucent>
-      <View style={styles.root}>
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Animated.View style={[styles.backdrop, { opacity: progress }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel="Cerrar" />
         </Animated.View>
-        <Animated.View style={[styles.card, { transform: [{ translateY }] }]} {...pan.panHandlers}>
-          <View style={styles.grabber} />
+        <Animated.View
+          style={[styles.card, height && { height: HEIGHT * height }, { transform: [{ translateY }] }]}
+        >
+          {/* Solo la parte de arriba arrastra: así las listas dentro de la hoja pueden hacer scroll */}
+          <View style={styles.handle} {...pan.panHandlers}>
+            <View style={styles.grabber} />
+          </View>
           {children}
         </Animated.View>
         {overlay}
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -89,12 +97,17 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 36,
   },
+  handle: {
+    paddingTop: 2,
+    paddingBottom: 18,
+    marginHorizontal: -24,
+    alignItems: 'center',
+  },
   grabber: {
     alignSelf: 'center',
     width: 40,
     height: 5,
     borderRadius: 3,
     backgroundColor: '#E2E0D6',
-    marginBottom: 18,
   },
 });

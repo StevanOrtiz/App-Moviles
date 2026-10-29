@@ -258,6 +258,71 @@ describe('materias', () => {
   });
 });
 
+describe('carrera, favoritas y personalizadas', () => {
+  test('editar perfil con carrera', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertSucceeds(
+      updateDoc(doc(db, 'users', 'alice'), {
+        careerId: 'ingenieria-industrial',
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(db, 'users', 'alice'), { careerId: 123, updatedAt: serverTimestamp() }),
+    );
+  });
+
+  test('guardar favoritas y personalizadas, con límite de 20', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertSucceeds(
+      updateDoc(doc(db, 'users', 'alice'), {
+        favoriteSubjects: ['calculo-i'],
+        customSubjects: { 'custom-frances': 'Francés' },
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(db, 'users', 'alice'), {
+        favoriteSubjects: Array.from({ length: 21 }, (_, i) => `m${i}`),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test('una sesión con materia personalizada no toca subjectMinutes', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users', 'alice', 'sessions', '1'), {
+      id: '1',
+      date: '2026-10-01',
+      duration: 25,
+      type: 'pomodoro',
+      time: '10:30 AM',
+      subjectId: 'custom-frances',
+      createdAt: serverTimestamp(),
+    });
+    batch.update(doc(db, 'users', 'alice'), {
+      totalMinutes: increment(25),
+      sessions: increment(1),
+      currentStreak: 1,
+      bestStreak: 1,
+      lastSessionDate: '2026-10-01',
+      lastSessionId: '1',
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      doc(db, 'universities', 'icesi'),
+      { totalMinutes: increment(25), students: increment(0), updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+    await assertSucceeds(batch.commit());
+    await assertFails(addSession(db, 'alice', { id: '2', subjectId: 'custom-frances' }));
+  });
+});
+
 describe('premium (demo)', () => {
   const toggle = (db, uid, enabled) =>
     updateDoc(doc(db, 'users', uid), {

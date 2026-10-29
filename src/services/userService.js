@@ -47,6 +47,9 @@ function toProfile(snapshot) {
     // Timestamp -> milisegundos (el perfil se guarda en caché como JSON)
     premiumSince: data.premiumSince?.toMillis ? data.premiumSince.toMillis() : null,
     goals: data.goals || {},
+    careerId: data.careerId || null,
+    favoriteSubjects: data.favoriteSubjects || [],
+    customSubjects: data.customSubjects || {},
   };
 }
 
@@ -62,13 +65,14 @@ export function subscribeToProfile(uid, onChange, onError) {
   );
 }
 
-export async function createProfile(uid, { name, universityId }) {
+export async function createProfile(uid, { name, universityId, careerId }) {
   const university = findUniversity(universityId);
   const batch = writeBatch(db);
   batch.set(userRef(uid), {
     name: name.trim(),
     universityId,
     universityName: university.name,
+    ...(careerId ? { careerId } : {}),
     totalMinutes: 0,
     sessions: 0,
     currentStreak: 0,
@@ -82,13 +86,14 @@ export async function createProfile(uid, { name, universityId }) {
   await batch.commit();
 }
 
-export async function updateProfile(uid, currentProfile, { name, universityId }) {
+export async function updateProfile(uid, currentProfile, { name, universityId, careerId }) {
   const university = findUniversity(universityId);
   const batch = writeBatch(db);
   batch.update(userRef(uid), {
     name: name.trim(),
     universityId,
     universityName: university.name,
+    careerId: careerId || null,
     updatedAt: serverTimestamp(),
   });
   // Los minutos ya estudiados se quedan en la universidad anterior
@@ -111,6 +116,15 @@ export async function setPremium(uid, enabled) {
 // Metas semanales por materia: { [subjectId]: minutos } (Premium)
 export async function setGoals(uid, goals) {
   await updateDoc(userRef(uid), { goals, updatedAt: serverTimestamp() });
+}
+
+// Materias favoritas y personalizadas del usuario
+export async function setSubjectPrefs(uid, { favoriteSubjects, customSubjects }) {
+  await updateDoc(userRef(uid), {
+    ...(favoriteSubjects ? { favoriteSubjects } : {}),
+    ...(customSubjects ? { customSubjects } : {}),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // Borra todo lo del usuario en Firestore (antes de eliminar la cuenta de Auth)

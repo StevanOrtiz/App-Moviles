@@ -13,11 +13,13 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
+import Paper from '../components/Paper';
 import CreateProfileScreen from './CreateProfileScreen';
 import { useAuth } from '../context/AuthContext';
 import { useSessions } from '../context/SessionsContext';
 import { usePremium } from '../context/PremiumContext';
+import { findCareer } from '../data/subjects';
 import PressableScale from '../components/PressableScale';
 import PremiumBadge from '../components/PremiumBadge';
 import AnimatedNumber from '../components/AnimatedNumber';
@@ -96,6 +98,7 @@ export default function ProfileScreen() {
   };
 
   return (
+    <Paper>
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.avatar}>
@@ -107,6 +110,7 @@ export default function ProfileScreen() {
           <Text style={[styles.name, isPremium && { color: COLORS.gold }]}>{user?.name}</Text>
         </FadeInView>
         <Text style={styles.university}>{user?.universityName}</Text>
+        {!!user?.careerId && <Text style={styles.career}>{findCareer(user.careerId)?.name}</Text>}
         <Text style={styles.email}>{authUser?.email}</Text>
 
         <View style={styles.statsRow}>
@@ -224,10 +228,18 @@ export default function ProfileScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+    </Paper>
   );
 }
 
 const styles = StyleSheet.create({
+  career: {
+    fontFamily: FONTS.semibold,
+    fontSize: 14,
+    color: COLORS.primary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -236,7 +248,7 @@ const styles = StyleSheet.create({
   },
   safe: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: 24,
@@ -254,21 +266,23 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 36,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.white,
   },
   name: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   university: {
     fontSize: 15,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginBottom: 4,
   },
   email: {
     fontSize: 13,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginBottom: 20,
   },
@@ -287,12 +301,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
   optionsWrap: {
@@ -310,7 +325,7 @@ const styles = StyleSheet.create({
   optionText: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
   },
   modalOverlay: {
@@ -328,12 +343,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginBottom: 10,
   },
   modalBody: {
     fontSize: 14,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginBottom: 20,
     lineHeight: 20,
@@ -352,11 +368,12 @@ const styles = StyleSheet.create({
   },
   switchTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textPrimary,
   },
   switchSubtitle: {
     fontSize: 12,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
@@ -371,17 +388,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
+    fontFamily: FONTS.regular,
     color: COLORS.textPrimary,
     marginBottom: 8,
   },
   error: {
     color: COLORS.error,
     fontSize: 14,
+    fontFamily: FONTS.regular,
     marginBottom: 8,
   },
   modalCloseText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.primary,
   },
 });

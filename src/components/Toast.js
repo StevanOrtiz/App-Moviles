@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import { usePremium } from '../context/PremiumContext';
 import { NATIVE, SPRING_SOFT } from '../utils/animation';
 
@@ -56,5 +56,5 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 1000,
   },
-  text: { color: COLORS.white, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  text: { color: COLORS.white, fontSize: 15, fontFamily: FONTS.semibold, textAlign: 'center' },
 });

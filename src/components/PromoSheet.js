@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../theme';
+import { COLORS, FONTS } from '../theme';
 import Sheet from './Sheet';
 import PressableScale from './PressableScale';
 import { usePremium } from '../context/PremiumContext';
@@ -74,10 +74,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.gold,
   },
-  emoji: { fontSize: 40 },
-  kicker: { fontSize: 12, fontWeight: '800', color: COLORS.gold, letterSpacing: 0.8, marginBottom: 6 },
-  title: { fontSize: 22, fontWeight: '700', color: COLORS.textPrimary, textAlign: 'center' },
-  body: { fontSize: 15, color: COLORS.textSecondary, textAlign: 'center', marginTop: 8, marginBottom: 20 },
+  emoji: { fontFamily: FONTS.regular, fontSize: 40 },
+  kicker: { fontSize: 12, fontFamily: FONTS.extrabold, color: COLORS.gold, letterSpacing: 0.8, marginBottom: 6 },
+  title: { fontSize: 22, fontFamily: FONTS.bold, color: COLORS.textPrimary, textAlign: 'center' },
+  body: { fontFamily: FONTS.regular, fontSize: 15, color: COLORS.textSecondary, textAlign: 'center', marginTop: 8, marginBottom: 20 },
   stretch: { alignSelf: 'stretch' },
   cta: {
     height: 52,
@@ -86,6 +86,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaText: { fontSize: 16, fontWeight: '700', color: COLORS.primary },
-  later: { fontSize: 15, color: COLORS.textSecondary, fontWeight: '600', paddingVertical: 14 },
+  ctaText: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.primary },
+  later: { fontSize: 15, color: COLORS.textSecondary, fontFamily: FONTS.semibold, paddingVertical: 14 },
 });
