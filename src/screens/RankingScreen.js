@@ -12,6 +12,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../theme';
 import LeaderboardItem from '../components/LeaderboardItem';
+import FadeInView from '../components/FadeInView';
+import { usePremium } from '../context/PremiumContext';
+import { useSessions } from '../context/SessionsContext';
 import SubjectPicker from '../components/SubjectPicker';
 import { findSubject } from '../data/subjects';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +23,9 @@ import { formatMinutes } from '../utils/formatTime';
 
 export default function RankingScreen() {
   const { user } = useAuth();
+  const { notifyPromo } = usePremium();
+  const { sessions } = useSessions();
+  const sessionsCount = sessions.length;
   const [tab, setTab] = useState('students');
   const [ranking, setRanking] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,6 +52,12 @@ export default function RankingScreen() {
     useCallback(() => {
       if (Date.now() - lastLoad.current > 60 * 1000) load();
     }, [load]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      notifyPromo('ranking_opened', { sessionsCount });
+    }, [notifyPromo, sessionsCount]),
   );
 
   const onRefresh = async () => {
@@ -111,8 +123,8 @@ export default function RankingScreen() {
             </Text>
           ) : tab === 'students' ? (
             students.map((s, index) => (
+              <FadeInView key={s.id} delay={Math.min(index, 12) * 40}>
               <LeaderboardItem
-                key={s.id}
                 position={index + 1}
                 name={s.name}
                 subtitle={s.university}
@@ -121,6 +133,7 @@ export default function RankingScreen() {
                 isCurrentUser={!!s.isCurrentUser}
                 premium={s.premium}
               />
+              </FadeInView>
             ))
           ) : (
             <>
@@ -133,13 +146,14 @@ export default function RankingScreen() {
               <Text style={styles.sectionTitle}>Overall</Text>
 
               {universitiesRanked.map((u, index) => (
+                <FadeInView key={u.id} delay={Math.min(index, 12) * 40}>
                 <LeaderboardItem
-                  key={u.id}
                   position={index + 1}
                   name={u.name}
                   subtitle={`${u.students} estudiantes`}
                   totalMinutes={u.totalMinutes}
                 />
+                </FadeInView>
               ))}
             </>
           )}

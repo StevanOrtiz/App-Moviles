@@ -35,6 +35,7 @@ users/{uid}                       ← perfil público (se usa en el ranking)
   lastSessionDate, lastSessionId, createdAt, updatedAt
   subjectMinutes { [subjectId]: minutos }   ← ranking por materia (sube con cada sesión con materia)
   premium (bool), premiumSince               ← suscripción (DEMO: se activa con un botón)
+  goals { [subjectId]: minutos/semana }      ← metas por materia (Premium)
 
 users/{uid}/sessions/{sessionId}  ← historial privado
   id, date (YYYY-MM-DD), duration (min), type ("pomodoro"), time ("10:30 AM"), subjectId (opcional), createdAt
@@ -171,3 +172,6 @@ Levanta el emulador de Firestore (requiere Java) y comprueba, entre otras cosas,
 - El ranking por materia es opcional: `getRanking(subjectId)` ordena por `subjectMinutes.{id}`. Las sesiones anteriores quedan "Sin materia".
 - `src/utils/stats.js` calcula las estadísticas (con pruebas en `tests/stats.test.mjs`).
 - Premium es **modo demo**: `users/{uid}.premium` lo cambia el propio usuario (regla `isPremiumToggle`). Antes de cobrar hay que cerrar esa regla y activarlo desde un backend tras validar el pago.
+- **Escudo de racha** (Premium): `getCurrentStreak(sessions, { shields: true })` perdona un día perdido por mes; el día perdido no suma.
+- **Promociones**: `src/utils/promo.js` decide si mostrar una (máx. 1 al día y 3 por semana, sin repetir la misma en 7 días, pausa de 14 días tras 3 rechazos). El estado se guarda en `promo:{uid}`.
+- Háptica con `expo-haptics` (`src/utils/haptics.js`); instálala con `npx expo install expo-haptics`.

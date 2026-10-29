@@ -135,3 +135,49 @@ export function weekOverWeek(sessions, now = new Date()) {
     change: previous > 0 ? Math.round(((current - previous) / previous) * 100) : null,
   };
 }
+
+// Lunes de la semana de `now`, como "YYYY-MM-DD"
+export function weekStartISO(now = new Date()) {
+  const offset = (now.getDay() + 6) % 7;
+  return toISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset));
+}
+
+// Progreso de las metas semanales (lunes a hoy): [{ subjectId, goal, minutes, progress (0-1), done }]
+// `goals`: { [subjectId]: minutos por semana }
+export function weeklyGoalProgress(sessions, goals = {}, now = new Date()) {
+  const start = weekStartISO(now);
+  const end = toISO(now);
+  const minutes = new Map();
+  sessions.forEach((s) => {
+    if (s.subjectId && s.date >= start && s.date <= end) {
+      minutes.set(s.subjectId, (minutes.get(s.subjectId) || 0) + s.duration);
+    }
+  });
+  return Object.entries(goals)
+    .filter(([, goal]) => goal > 0)
+    .map(([subjectId, goal]) => {
+      const done = minutes.get(subjectId) || 0;
+      return { subjectId, goal, minutes: done, progress: Math.min(1, done / goal), done: done >= goal };
+    })
+    .sort((a, b) => b.progress - a.progress);
+}
+
+// Resumen de los últimos 7 días para compartir
+export function weeklyReport(sessions, now = new Date()) {
+  const days = minutesPerDay(sessions, 7, now);
+  const from = days[0].date;
+  const to = days[6].date;
+  const week = sessions.filter((s) => s.date >= from && s.date <= to);
+  const top = topSubject(week);
+  const { change } = weekOverWeek(sessions, now);
+  return {
+    from,
+    to,
+    minutes: totalMinutes(week),
+    sessions: week.length,
+    activeDays: days.filter((d) => d.minutes > 0).length,
+    topSubjectId: top ? top.subjectId : null,
+    topSubjectMinutes: top ? top.minutes : 0,
+    change,
+  };
+}

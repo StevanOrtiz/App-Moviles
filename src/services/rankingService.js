@@ -11,10 +11,11 @@ function daysBetween(fromISO, to) {
   return Math.round((today - from) / (24 * 60 * 60 * 1000));
 }
 
-// La racha guardada solo sigue viva si estudió hoy o ayer
+// La racha guardada solo sigue viva si estudió hoy o ayer (Premium: un día más por el escudo)
 function activeStreak(user, now) {
   if (!user.lastSessionDate) return 0;
-  return daysBetween(user.lastSessionDate, now) <= 1 ? user.currentStreak || 0 : 0;
+  const margin = user.premium === true ? 2 : 1;
+  return daysBetween(user.lastSessionDate, now) <= margin ? user.currentStreak || 0 : 0;
 }
 
 async function getTop(collectionName, field = 'totalMinutes') {

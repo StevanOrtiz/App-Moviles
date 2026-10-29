@@ -44,6 +44,9 @@ function toProfile(snapshot) {
     lastSessionDate: data.lastSessionDate || null,
     subjectMinutes: data.subjectMinutes || {},
     premium: data.premium === true,
+    // Timestamp -> milisegundos (el perfil se guarda en caché como JSON)
+    premiumSince: data.premiumSince?.toMillis ? data.premiumSince.toMillis() : null,
+    goals: data.goals || {},
   };
 }
 
@@ -103,6 +106,11 @@ export async function setPremium(uid, enabled) {
     premiumSince: enabled ? serverTimestamp() : null,
     updatedAt: serverTimestamp(),
   });
+}
+
+// Metas semanales por materia: { [subjectId]: minutos } (Premium)
+export async function setGoals(uid, goals) {
+  await updateDoc(userRef(uid), { goals, updatedAt: serverTimestamp() });
 }
 
 // Borra todo lo del usuario en Firestore (antes de eliminar la cuenta de Auth)

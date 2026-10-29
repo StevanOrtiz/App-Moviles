@@ -1,8 +1,26 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Pressable } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Pressable,
+  Animated,
+  Easing,
+  Platform,
+  Share,
+} from 'react-native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { COLORS } from '../theme';
 import StatCard from '../components/StatCard';
+import FadeInView from '../components/FadeInView';
+import PressableScale from '../components/PressableScale';
+import Sheet from '../components/Sheet';
+import * as haptics from '../utils/haptics';
+import { SUBJECTS } from '../data/subjects';
 import { useSessions } from '../context/SessionsContext';
+import { useAuth } from '../context/AuthContext';
 import { usePremium } from '../context/PremiumContext';
 import { findSubject } from '../data/subjects';
 import { getCurrentStreak } from '../utils/streak';
@@ -18,6 +36,8 @@ import {
   topSubject,
   totalMinutes,
   weekOverWeek,
+  weeklyGoalProgress,
+  weeklyReport,
 } from '../utils/stats';
 
 const HEAT_COLORS = ['#E6E3D6', '#C5EBD1', '#96E0AF', '#65D889', '#00483F'];
@@ -32,17 +52,137 @@ function formatDate(iso) {
   return `${d}/${m}/${y}`;
 }
 
-// Contenido Premium bloqueado: se ve difuminado con candado y lleva a la pantalla Premium
-function PremiumSection({ title, locked, onUnlock, children }) {
+// Barra que crece desde 0 hasta `value` (0-1) cada vez que se abre la pestaña
+function GrowBar({ value, color, vertical, style, delay = 0 }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (!focused) return;
+    anim.setValue(0);
+    Animated.timing(anim, {
+      toValue: value,
+      duration: 700,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [focused, value, anim, delay]);
+  const size = anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   return (
-    <View style={styles.section}>
+    <Animated.View
+      style={[style, color && { backgroundColor: color }, vertical ? { height: size } : { width: size }]}
+    />
+  );
+}
+
+const GOAL_STEPS = [0, 30, 60, 90, 120, 180, 240, 300, 420, 600];
+
+// Editor de metas: por materia, minutos por semana con pasos +/-
+function GoalsEditor({ visible, goals, onSave, onClose }) {
+  const [draft, setDraft] = useState(goals);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (visible) setDraft(goals);
+  }, [visible, goals]);
+
+  const step = (id, dir) => {
+    const current = draft[id] || 0;
+    const index = GOAL_STEPS.findIndex((v) => v >= current);
+    const next = GOAL_STEPS[Math.max(0, Math.min(GOAL_STEPS.length - 1, (index === -1 ? 0 : index) + dir))];
+    haptics.selection();
+    setDraft({ ...draft, [id]: next });
+  };
+
+  const save = async () => {
+    setSaving(true);
+    const clean = Object.fromEntries(Object.entries(draft).filter(([, v]) => v > 0));
+    try {
+      await onSave(clean);
+      haptics.success();
+      onClose();
+    } catch (e) {
+      haptics.warning();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet visible={visible} onClose={onClose}>
+      <Text style={styles.sheetTitle}>Metas semanales</Text>
+      <Text style={styles.sheetSub}>Minutos por semana para cada materia</Text>
+      {SUBJECTS.map((subject) => (
+        <View key={subject.id} style={styles.goalEditRow}>
+          <View style={[styles.goalDot, { backgroundColor: subject.color }]} />
+          <Text style={styles.goalEditName}>{subject.name}</Text>
+          <PressableScale haptic={null} onPress={() => step(subject.id, -1)} style={styles.stepper} accessibilityLabel={`Menos ${subject.name}`}>
+            <Text style={styles.stepperText}>−</Text>
+          </PressableScale>
+          <Text style={styles.goalEditValue}>{draft[subject.id] ? formatMinutes(draft[subject.id]) : '—'}</Text>
+          <PressableScale haptic={null} onPress={() => step(subject.id, 1)} style={styles.stepper} accessibilityLabel={`Más ${subject.name}`}>
+            <Text style={styles.stepperText}>+</Text>
+          </PressableScale>
+        </View>
+      ))}
+      <PressableScale haptic="press" onPress={save} disabled={saving} style={styles.saveButton} accessibilityLabel="Guardar metas">
+        <Text style={styles.saveText}>{saving ? 'Guardando…' : 'Guardar metas'}</Text>
+      </PressableScale>
+    </Sheet>
+  );
+}
+
+function reportText(report, name) {
+  const top = report.topSubjectId ? findSubject(report.topSubjectId).name : null;
+  const lines = [
+    `📚 Mi semana en UniStreak${name ? ` (${name})` : ''}`,
+    `⏱️ ${formatMinutes(report.minutes)} de estudio en ${report.sessions} ${report.sessions === 1 ? 'sesión' : 'sesiones'}`,
+    `📅 ${report.activeDays}/7 días activos`,
+  ];
+  if (top) lines.push(`🏆 Materia top: ${top} (${formatMinutes(report.topSubjectMinutes)})`);
+  if (report.change !== null) lines.push(`${report.change >= 0 ? '📈' : '📉'} ${report.change > 0 ? '+' : ''}${report.change}% vs la semana pasada`);
+  lines.push('¿Te unes? 🔥');
+  return lines.join('\n');
+}
+
+async function shareReport(text, onCopied) {
+  try {
+    if (Platform.OS === 'web') {
+      if (navigator.share) await navigator.share({ text });
+      else {
+        await navigator.clipboard.writeText(text);
+        onCopied();
+      }
+      return;
+    }
+    await Share.share({ message: text });
+  } catch (e) {
+    // el usuario canceló
+  }
+}
+
+// Contenido Premium bloqueado: se ve difuminado con candado y lleva a la pantalla Premium
+function PremiumSection({ title, locked, onUnlock, children, action }) {
+  return (
+    <FadeInView delay={300} style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.proTag}>👑 PRO</Text>
+        {action ? (
+          <PressableScale onPress={action.onPress} haptic="tap" accessibilityLabel={action.label}>
+            <Text style={styles.actionText}>{action.label}</Text>
+          </PressableScale>
+        ) : (
+          <Text style={styles.proTag}>👑 PRO</Text>
+        )}
       </View>
       <View style={styles.card}>
         {locked ? (
-          <Pressable onPress={onUnlock} accessibilityLabel={`Desbloquear ${title}`}>
+          <Pressable
+            onPress={() => {
+              haptics.tap();
+              onUnlock();
+            }}
+            accessibilityLabel={`Desbloquear ${title}`}
+          >
             <View style={styles.lockedContent} pointerEvents="none">
               {children}
             </View>
@@ -55,13 +195,22 @@ function PremiumSection({ title, locked, onUnlock, children }) {
           children
         )}
       </View>
-    </View>
+    </FadeInView>
   );
 }
 
 export default function StatsScreen() {
   const { sessions } = useSessions();
-  const { isPremium, openPremium } = usePremium();
+  const { isPremium, openPremium, goals, setGoals, notifyPromo, showToast } = usePremium();
+  const { profile } = useAuth();
+  const [editingGoals, setEditingGoals] = useState(false);
+  const sessionsCount = sessions.length;
+
+  useFocusEffect(
+    useCallback(() => {
+      notifyPromo('stats_opened', { sessionsCount });
+    }, [notifyPromo, sessionsCount]),
+  );
 
   const total = totalMinutes(sessions);
   const bySubject = statsBySubject(sessions);
@@ -72,6 +221,8 @@ export default function StatsScreen() {
   const hour = bestHour(sessions);
   const weekday = bestWeekday(sessions);
   const wow = weekOverWeek(sessions);
+  const goalProgress = weeklyGoalProgress(sessions, goals);
+  const report = weeklyReport(sessions);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -84,29 +235,33 @@ export default function StatsScreen() {
           </Text>
         ) : (
           <>
-            <View style={styles.row}>
-              <StatCard label="Tiempo total" value={formatMinutes(total)} accent />
-              <StatCard label="Sesiones" value={String(sessions.length)} accent />
-            </View>
-            <View style={[styles.row, { marginTop: 12 }]}>
-              <StatCard label="Promedio por día" value={formatMinutes(averagePerActiveDay(sessions))} />
-              <StatCard label="Racha actual" value={`🔥 ${getCurrentStreak(sessions)}`} />
-            </View>
+            <FadeInView style={styles.row}>
+              <StatCard label="Tiempo total" number={total} format={formatMinutes} accent />
+              <StatCard label="Sesiones" number={sessions.length} accent />
+            </FadeInView>
+            <FadeInView delay={60} style={[styles.row, { marginTop: 12 }]}>
+              <StatCard label="Promedio por día" number={averagePerActiveDay(sessions)} format={formatMinutes} />
+              <StatCard
+                label="Racha actual"
+                number={getCurrentStreak(sessions, { shields: isPremium })}
+                format={(n) => `🔥 ${n}`}
+              />
+            </FadeInView>
 
             {top && (
-              <View style={styles.topCard}>
+              <FadeInView delay={120} style={styles.topCard}>
                 <Text style={styles.topLabel}>Tu materia favorita</Text>
                 <Text style={styles.topName}>{findSubject(top.subjectId).name}</Text>
                 <Text style={styles.topValue}>
                   {formatMinutes(top.minutes)} · {top.sessions} {top.sessions === 1 ? 'sesión' : 'sesiones'}
                 </Text>
-              </View>
+              </FadeInView>
             )}
 
-            <View style={styles.section}>
+            <FadeInView delay={180} style={styles.section}>
               <Text style={styles.sectionTitle}>Por materia</Text>
               <View style={styles.card}>
-                {bySubject.map((item) => {
+                {bySubject.map((item, index) => {
                   const subject = findSubject(item.subjectId);
                   return (
                     <View key={item.subjectId ?? 'none'} style={styles.subjectRow}>
@@ -117,38 +272,93 @@ export default function StatsScreen() {
                         </Text>
                       </View>
                       <View style={styles.barTrack}>
-                        <View
-                          style={[
-                            styles.barFill,
-                            { width: `${Math.max(item.share * 100, 3)}%`, backgroundColor: subject.color },
-                          ]}
+                        <GrowBar
+                          value={Math.max(item.share, 0.03)}
+                          color={subject.color}
+                          style={styles.barFill}
+                          delay={250 + index * 80}
                         />
                       </View>
                     </View>
                   );
                 })}
               </View>
-            </View>
+            </FadeInView>
 
-            <View style={styles.section}>
+            <FadeInView delay={240} style={styles.section}>
               <Text style={styles.sectionTitle}>Últimos 7 días</Text>
               <View style={[styles.card, styles.chart]}>
-                {week.map((d) => (
+                {week.map((d, index) => (
                   <View key={d.date} style={styles.chartCol}>
                     <Text style={styles.chartValue}>{d.minutes > 0 ? d.minutes : ''}</Text>
                     <View style={styles.chartTrack}>
-                      <View
-                        style={[
-                          styles.chartBar,
-                          { height: `${(d.minutes / maxDay) * 100}%` },
-                        ]}
-                      />
+                      <GrowBar vertical value={d.minutes / maxDay} style={styles.chartBar} delay={300 + index * 50} />
                     </View>
                     <Text style={styles.chartLabel}>{d.label}</Text>
                   </View>
                 ))}
               </View>
-            </View>
+            </FadeInView>
+
+            <PremiumSection
+              title="Metas de la semana"
+              locked={!isPremium}
+              onUnlock={openPremium}
+              action={isPremium ? { label: 'Editar', onPress: () => setEditingGoals(true) } : null}
+            >
+              {goalProgress.length === 0 ? (
+                <Text style={styles.insight}>
+                  {isPremium ? 'Ponle una meta semanal a tus materias 🎯' : '🎯 Cálculo · 2h de 3h'}
+                </Text>
+              ) : (
+                goalProgress.map((g, index) => {
+                  const subject = findSubject(g.subjectId);
+                  return (
+                    <View key={g.subjectId} style={styles.subjectRow}>
+                      <View style={styles.subjectHead}>
+                        <Text style={styles.subjectName}>
+                          {g.done ? '✅ ' : ''}
+                          {subject.name}
+                        </Text>
+                        <Text style={styles.subjectMinutes}>
+                          {formatMinutes(g.minutes)} de {formatMinutes(g.goal)}
+                        </Text>
+                      </View>
+                      <View style={styles.barTrack}>
+                        <GrowBar value={Math.max(g.progress, 0.03)} color={g.done ? COLORS.secondaryGreen : subject.color} style={styles.barFill} delay={200 + index * 80} />
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </PremiumSection>
+
+            <PremiumSection title="Informe semanal" locked={!isPremium} onUnlock={openPremium}>
+              <View style={styles.reportRow}>
+                <View style={styles.reportItem}>
+                  <Text style={styles.reportValue}>{formatMinutes(report.minutes)}</Text>
+                  <Text style={styles.reportLabel}>estudiados</Text>
+                </View>
+                <View style={styles.reportItem}>
+                  <Text style={styles.reportValue}>{report.activeDays}/7</Text>
+                  <Text style={styles.reportLabel}>días activos</Text>
+                </View>
+                <View style={styles.reportItem}>
+                  <Text style={styles.reportValue} numberOfLines={1}>
+                    {report.topSubjectId ? findSubject(report.topSubjectId).name : '—'}
+                  </Text>
+                  <Text style={styles.reportLabel}>materia top</Text>
+                </View>
+              </View>
+              <PressableScale
+                haptic="press"
+                onPress={() => shareReport(reportText(report, profile?.name), () => showToast('📋 Informe copiado'))}
+                style={styles.shareButton}
+                accessibilityLabel="Compartir informe"
+              >
+                <Text style={styles.shareText}>📤 Compartir mi semana</Text>
+              </PressableScale>
+            </PremiumSection>
 
             <PremiumSection title="Tus mejores momentos" locked={!isPremium} onUnlock={openPremium}>
               <Text style={styles.insight}>
@@ -194,6 +404,13 @@ export default function StatsScreen() {
           </>
         )}
       </ScrollView>
+
+      <GoalsEditor
+        visible={editingGoals}
+        goals={goals}
+        onSave={setGoals}
+        onClose={() => setEditingGoals(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -235,5 +452,22 @@ const styles = StyleSheet.create({
   heatmap: { flexDirection: 'row', gap: 4, justifyContent: 'center' },
   heatCol: { gap: 4 },
   heatCell: { width: 20, height: 20, borderRadius: 5 },
+  actionText: { fontSize: 14, fontWeight: '700', color: COLORS.primary, marginBottom: 12 },
+  reportRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  reportItem: { flex: 1, alignItems: 'center' },
+  reportValue: { fontSize: 18, fontWeight: '700', color: COLORS.primary },
+  reportLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  shareButton: { height: 46, borderRadius: 14, backgroundColor: COLORS.yellow, alignItems: 'center', justifyContent: 'center' },
+  shareText: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  sheetTitle: { fontSize: 22, fontWeight: '700', color: COLORS.textPrimary, textAlign: 'center' },
+  sheetSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  goalEditRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 10 },
+  goalDot: { width: 10, height: 10, borderRadius: 5 },
+  goalEditName: { flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  goalEditValue: { width: 62, textAlign: 'center', fontSize: 15, fontWeight: '700', color: COLORS.primary },
+  stepper: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' },
+  stepperText: { fontSize: 20, fontWeight: '700', color: COLORS.primary },
+  saveButton: { marginTop: 18, height: 52, borderRadius: 16, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  saveText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
   heatCaption: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 10 },
 });

@@ -14,49 +14,70 @@ function getUniqueSortedDates(sessions) {
   return uniqueDates.map(parseDate).sort((a, b) => a - b);
 }
 
-// Días consecutivos hasta hoy (o hasta ayer si hoy todavía no se ha estudiado)
-export function getCurrentStreak(sessions) {
-  if (!sessions || sessions.length === 0) return 0;
+const monthKey = (d) => `${d.getFullYear()}-${d.getMonth()}`;
+
+// ¿Se puede unir `earlier` con `later` en la misma racha?
+// Con escudo (Premium) se perdona un solo día perdido por mes calendario.
+function bridger(shields, used) {
+  return (later, earlier) => {
+    const gap = diffInDays(later, earlier);
+    if (gap <= 1) return true;
+    if (!shields || gap !== 2) return false;
+    const missed = new Date(earlier.getFullYear(), earlier.getMonth(), earlier.getDate() + 1);
+    const key = monthKey(missed);
+    if (used.has(key)) return false;
+    used.add(key);
+    return true;
+  };
+}
+
+// Racha actual y meses en que se usó el escudo
+function walkCurrent(sessions, { shields = false, now = new Date() } = {}) {
+  const used = new Set();
+  if (!sessions || sessions.length === 0) return { streak: 0, used };
 
   const dates = getUniqueSortedDates(sessions);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const canBridge = bridger(shields, used);
 
-  const lastDate = dates[dates.length - 1];
-  const daysSinceLast = diffInDays(today, lastDate);
-
-  // Si la última sesión fue hace más de 1 día, la racha se rompió
-  if (daysSinceLast > 1) return 0;
+  // Si la última sesión fue antes de ayer (y no hay escudo), la racha se rompió
+  if (!canBridge(today, dates[dates.length - 1])) return { streak: 0, used: new Set() };
 
   let streak = 1;
   for (let i = dates.length - 1; i > 0; i--) {
-    const gap = diffInDays(dates[i], dates[i - 1]);
-    if (gap === 1) {
-      streak++;
-    } else if (gap === 0) {
-      continue;
-    } else {
-      break;
-    }
+    if (!canBridge(dates[i], dates[i - 1])) break;
+    streak++;
   }
-  return streak;
+  return { streak, used };
 }
 
-// Racha consecutiva más larga en todo el historial
-export function getBestStreak(sessions) {
+// Días estudiados seguidos hasta hoy (o hasta ayer si hoy todavía no se ha estudiado).
+// Los días perdonados por el escudo unen la racha pero no suman.
+export function getCurrentStreak(sessions, options) {
+  return walkCurrent(sessions, options).streak;
+}
+
+// true si la racha actual ya gastó el escudo de este mes
+export function shieldUsedThisMonth(sessions, now = new Date()) {
+  return walkCurrent(sessions, { shields: true, now }).used.has(monthKey(now));
+}
+
+// Racha más larga en todo el historial
+export function getBestStreak(sessions, { shields = false } = {}) {
   if (!sessions || sessions.length === 0) return 0;
 
   const dates = getUniqueSortedDates(sessions);
 
   let best = 1;
   let current = 1;
+  let used = new Set();
   for (let i = 1; i < dates.length; i++) {
-    const gap = diffInDays(dates[i], dates[i - 1]);
-    if (gap === 1) {
+    if (bridger(shields, used)(dates[i], dates[i - 1])) {
       current++;
       best = Math.max(best, current);
-    } else if (gap > 1) {
+    } else {
       current = 1;
+      used = new Set();
     }
   }
   return best;

@@ -1,10 +1,13 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
+import PressableScale from './PressableScale';
 import { COLORS } from '../theme';
 
 export default function PrimaryButton({ title, onPress, disabled, accessibilityLabel }) {
   return (
-    <Pressable
+    <PressableScale
+      haptic="press"
+      containerStyle={styles.container}
       onPress={onPress}
       disabled={disabled}
       accessibilityLabel={accessibilityLabel || title}
@@ -15,11 +18,14 @@ export default function PrimaryButton({ title, onPress, disabled, accessibilityL
       ]}
     >
       <Text style={styles.text}>{title}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    alignSelf: 'stretch',
+  },
   button: {
     backgroundColor: COLORS.primary,
     height: 52,

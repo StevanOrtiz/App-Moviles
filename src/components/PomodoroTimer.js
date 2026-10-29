@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, AppState } from 'react-native';
+import { View, Text, StyleSheet, AppState, Animated, Easing } from 'react-native';
+import PressableScale from './PressableScale';
+import { NATIVE } from '../utils/animation';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme';
 import { formatClock } from '../utils/formatTime';
@@ -59,6 +61,34 @@ export default function PomodoroTimer({
     };
   }, [isRunning]);
 
+  // Latido suave del reloj mientras corre y barra de progreso
+  const beat = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!isRunning) {
+      beat.setValue(0);
+      return undefined;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(beat, { toValue: 1, duration: 500, easing: Easing.out(Easing.quad), useNativeDriver: NATIVE }),
+        Animated.timing(beat, { toValue: 0, duration: 500, easing: Easing.in(Easing.quad), useNativeDriver: NATIVE }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isRunning, beat]);
+  const clockScale = beat.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] });
+
+  const progress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: duration > 0 ? 1 - timer / duration : 0,
+      duration: 400,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }, [timer, duration, progress]);
+
   const handleStart = () => {
     if (timer > 0) setIsRunning(true);
   };
@@ -75,11 +105,23 @@ export default function PomodoroTimer({
   return (
     <View style={styles.card}>
       <Text style={styles.cardLabel}>Pomodoro</Text>
-      <Text style={styles.clock}>{formatClock(timer)}</Text>
+      <Animated.Text style={[styles.clock, { transform: [{ scale: clockScale }] }]}>
+        {formatClock(timer)}
+      </Animated.Text>
+      <View style={styles.progressTrack}>
+        <Animated.View
+          style={[
+            styles.progressFill,
+            { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+          ]}
+        />
+      </View>
 
       <View style={styles.controls}>
         {!isRunning ? (
-          <Pressable
+          <PressableScale
+            haptic="press"
+            containerStyle={styles.mainWrap}
             style={[styles.controlButton, styles.mainButton]}
             onPress={handleStart}
             accessibilityLabel={timer === duration ? 'Iniciar' : 'Reanudar'}
@@ -88,25 +130,28 @@ export default function PomodoroTimer({
             <Text style={styles.mainButtonText}>
               {timer === duration ? 'Iniciar' : 'Reanudar'}
             </Text>
-          </Pressable>
+          </PressableScale>
         ) : (
-          <Pressable
+          <PressableScale
+            haptic="press"
+            containerStyle={styles.mainWrap}
             style={[styles.controlButton, styles.mainButton]}
             onPress={handlePause}
             accessibilityLabel="Pausar"
           >
             <Ionicons name="pause" size={22} color={COLORS.primary} />
             <Text style={styles.mainButtonText}>Pausar</Text>
-          </Pressable>
+          </PressableScale>
         )}
 
-        <Pressable
+        <PressableScale
+          haptic="tap"
           style={[styles.controlButton, styles.resetButton]}
           onPress={handleReset}
           accessibilityLabel="Reiniciar"
         >
           <Ionicons name="refresh" size={20} color={COLORS.primary} />
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   );
@@ -129,7 +174,24 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 52,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: 12,
+    fontVariant: ['tabular-nums'],
+  },
+  progressTrack: {
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginBottom: 18,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.secondaryGreen,
+  },
+  mainWrap: {
+    flex: 1,
   },
   controls: {
     flexDirection: 'row',
@@ -146,7 +208,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   mainButton: {
-    flex: 1,
     backgroundColor: COLORS.secondaryGreen,
   },
   mainButtonText: {

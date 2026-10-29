@@ -1,11 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../theme';
+import AnimatedNumber from './AnimatedNumber';
 
-export default function StatCard({ label, value, accent }) {
+// Con `number` (y opcionalmente `format`) el valor se anima contando hasta el número
+export default function StatCard({ label, value, accent, number, format }) {
+  const valueStyle = [styles.value, accent && { color: COLORS.primary }];
   return (
     <View style={styles.card}>
-      <Text style={[styles.value, accent && { color: COLORS.primary }]}>{value}</Text>
+      {number !== undefined ? (
+        <AnimatedNumber value={number} format={format} style={valueStyle} />
+      ) : (
+        <Text style={valueStyle}>{value}</Text>
+      )}
       <Text style={styles.label}>{label}</Text>
     </View>
   );

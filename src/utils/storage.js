@@ -11,6 +11,8 @@ const KEYS = {
   reminders: (uid) => `reminders:${uid}`,
   reminderList: (uid) => `reminderList:${uid}`,
   pushToken: (uid) => `pushToken:${uid}`,
+  promo: (uid) => `promo:${uid}`,
+  goalsCelebrated: (uid) => `goalsCelebrated:${uid}`,
   // Claves de la versión sin cuenta (solo para migrar)
   LEGACY_USER: 'user',
   LEGACY_SESSIONS: 'sessions',
@@ -60,6 +62,14 @@ export const saveCachedPushToken = (uid, token) => writeJson(KEYS.pushToken(uid)
 
 // Una copia por filtro: `ranking:cache` (todas las materias) o `ranking:cache:{materia}`
 const rankingKey = (subjectId) => (subjectId ? `${KEYS.RANKING}:${subjectId}` : KEYS.RANKING);
+// Estado de las promociones de Premium (src/utils/promo.js)
+export const getPromoState = (uid) => readJson(KEYS.promo(uid), null);
+export const savePromoState = (uid, state) => writeJson(KEYS.promo(uid), state);
+
+// Metas ya celebradas: ["2026-10-26:calculo", ...] (una vez por semana y materia)
+export const getCelebratedGoals = (uid) => readJson(KEYS.goalsCelebrated(uid), []);
+export const saveCelebratedGoals = (uid, list) => writeJson(KEYS.goalsCelebrated(uid), list);
+
 export const getCachedRanking = (subjectId = null) => readJson(rankingKey(subjectId), null);
 export const saveCachedRanking = (ranking, subjectId = null) =>
   writeJson(rankingKey(subjectId), ranking);
@@ -73,6 +83,8 @@ export async function clearUserCache(uid) {
       KEYS.reminders(uid),
       KEYS.reminderList(uid),
       KEYS.pushToken(uid),
+      KEYS.promo(uid),
+      KEYS.goalsCelebrated(uid),
     ]);
   } catch (e) {
     // sin efecto: la caché se reescribe en el próximo inicio de sesión

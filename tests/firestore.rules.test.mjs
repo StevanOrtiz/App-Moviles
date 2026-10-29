@@ -288,6 +288,31 @@ describe('premium (demo)', () => {
   });
 });
 
+describe('metas', () => {
+  test('el dueño guarda sus metas; otro usuario no', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertSucceeds(
+      updateDoc(doc(db, 'users', 'alice'), { goals: { calculo: 120 }, updatedAt: serverTimestamp() }),
+    );
+    await assertFails(
+      updateDoc(doc(dbFor('bob'), 'users', 'alice'), { goals: { calculo: 1 }, updatedAt: serverTimestamp() }),
+    );
+  });
+
+  test('no se pueden colar otros campos con las metas', async () => {
+    const db = dbFor('alice');
+    await createProfile(db, 'alice');
+    await assertFails(
+      updateDoc(doc(db, 'users', 'alice'), {
+        goals: { calculo: 120 },
+        totalMinutes: 999,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+});
+
 describe('eliminar cuenta', () => {
   test('borra sesiones y perfil y resta el estudiante', async () => {
     const db = dbFor('alice');

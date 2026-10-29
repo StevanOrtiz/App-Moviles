@@ -25,7 +25,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test:rules": "firebase emulators:exec --only firestore --project demo-unistreak 'node --test tests/firestore.rules.test.mjs'",
-    "test:unit": "node --test tests/reminder.test.mjs tests/authErrors.test.mjs tests/stats.test.mjs"
+    "test:unit": "node --test tests/reminder.test.mjs tests/authErrors.test.mjs tests/stats.test.mjs tests/streak.test.mjs tests/promo.test.mjs"
   },
   "private": true,
   "devDependencies": {

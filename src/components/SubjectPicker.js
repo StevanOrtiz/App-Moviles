@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, Pressable, Text, StyleSheet } from 'react-native';
+import { ScrollView, Text, StyleSheet } from 'react-native';
+import PressableScale from './PressableScale';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme';
 import { NO_SUBJECT, SUBJECTS } from '../data/subjects';
@@ -23,8 +24,9 @@ export default function SubjectPicker({
       {options.map((s) => {
         const active = (value ?? null) === s.id;
         return (
-          <Pressable
+          <PressableScale
             key={s.id ?? 'none'}
+            haptic="selection"
             disabled={disabled}
             onPress={() => onChange(s.id)}
             accessibilityLabel={s.name}
@@ -36,7 +38,7 @@ export default function SubjectPicker({
           >
             <Ionicons name={s.icon} size={16} color={active ? COLORS.white : s.color} />
             <Text style={[styles.text, active && styles.textActive]}>{s.name}</Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </ScrollView>

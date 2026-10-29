@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import StreakCard from '../components/StreakCard';
 import PomodoroTimer from '../components/PomodoroTimer';
 import StatCard from '../components/StatCard';
@@ -7,12 +7,20 @@ import SessionItem from '../components/SessionItem';
 import PrimaryButton from '../components/PrimaryButton';
 import SubjectPicker from '../components/SubjectPicker';
 import PremiumBanner from '../components/PremiumBanner';
+import PremiumBadge from '../components/PremiumBadge';
+import PressableScale from '../components/PressableScale';
+import FadeInView from '../components/FadeInView';
+import Sheet from '../components/Sheet';
+import Confetti from '../components/Confetti';
+import * as haptics from '../utils/haptics';
+import { weekStartISO, weeklyGoalProgress } from '../utils/stats';
+import { getCelebratedGoals, saveCelebratedGoals } from '../utils/storage';
 import { COLORS } from '../theme';
 import { findSubject } from '../data/subjects';
 import { DEFAULT_DURATION, POMODORO_DURATIONS, usePremium } from '../context/PremiumContext';
 import { useAuth } from '../context/AuthContext';
 import { useSessions } from '../context/SessionsContext';
-import { getCurrentStreak, getWeekIndicator } from '../utils/streak';
+import { getCurrentStreak, getWeekIndicator, shieldUsedThisMonth } from '../utils/streak';
 import { formatMinutes, todayISO, formatClockTime } from '../utils/formatTime';
 
 function getGreeting() {
@@ -23,9 +31,9 @@ function getGreeting() {
 }
 
 export default function HomeScreen() {
-  const { profile: user } = useAuth();
+  const { user: authUser, profile: user } = useAuth();
   const { sessions, addSession } = useSessions();
-  const { isPremium, openPremium } = usePremium();
+  const { isPremium, openPremium, notifyPromo, showToast, goals } = usePremium();
   // Duración en minutos: Premium la elige, gratis siempre 25
   const [minutes, setMinutes] = useState(DEFAULT_DURATION);
   const [timer, setTimer] = useState(DEFAULT_DURATION * 60);
@@ -66,15 +74,49 @@ export default function HomeScreen() {
       ...(subjectRef.current ? { subjectId: subjectRef.current } : {}),
     };
 
+    haptics.success();
     addSession(newSession);
     setCompleted({ minutes: newSession.duration, subjectId: subjectRef.current });
     setModalVisible(true);
   }, [addSession]);
 
-  const handleContinue = () => {
+  // Al cerrar la hoja de "Sesión completada": celebra la meta semanal o, si no, quizá una promo
+  const handleContinue = async () => {
     setModalVisible(false);
     setTimer(duration);
+
+    const subject = completed.subjectId;
+    const goal = isPremium && subject
+      ? weeklyGoalProgress(sessions, goals).find((g) => g.subjectId === subject)
+      : null;
+    if (goal?.done && authUser) {
+      const key = `${weekStartISO()}:${subject}`;
+      const celebrated = await getCelebratedGoals(authUser.uid);
+      if (!celebrated.includes(key)) {
+        saveCelebratedGoals(authUser.uid, [...celebrated.slice(-50), key]);
+        haptics.success();
+        showToast(`🎯 ¡Meta semanal de ${findSubject(subject).name} cumplida!`);
+        return;
+      }
+    }
+
+    notifyPromo(['streak_milestone', 'session_completed'], {
+      sessionsCount: sessions.length,
+      streak: getCurrentStreak(sessions, { shields: isPremium }),
+      subjectName: subject ? findSubject(subject).name : null,
+      isRunning: false,
+    });
   };
+
+  // Una posible promo al abrir la app (las reglas de src/utils/promo.js evitan repetirla)
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      notifyPromo('app_open', { sessionsCount: sessionsRef.current.length, isRunning: false });
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [notifyPromo]);
 
   const today = todayISO();
   const minutesToday = sessions
@@ -88,42 +130,53 @@ export default function HomeScreen() {
     .filter((s) => new Date(`${s.date}T00:00:00`) >= weekAgo)
     .reduce((sum, s) => sum + s.duration, 0);
 
-  const currentStreak = getCurrentStreak(sessions);
+  const currentStreak = getCurrentStreak(sessions, { shields: isPremium });
+  const shieldUsed = isPremium && shieldUsedThisMonth(sessions);
   const week = getWeekIndicator(sessions);
   const recentSessions = [...sessions].reverse().slice(0, 5);
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.greeting}>
-          {getGreeting()}, {isPremium ? '👑 ' : ''}
-          {user?.name || 'Estudiante'} 👋
-        </Text>
+        <FadeInView style={styles.greetingRow}>
+          <Text style={styles.greeting}>
+            {getGreeting()}, {user?.name || 'Estudiante'} 👋
+          </Text>
+          {isPremium && <PremiumBadge size={22} />}
+        </FadeInView>
 
-        <View style={styles.section}>
-          <StreakCard streak={currentStreak} week={week} premium={isPremium} />
-        </View>
+        <FadeInView delay={60} style={styles.section}>
+          <StreakCard
+            streak={currentStreak}
+            week={week}
+            premium={isPremium}
+            shieldUsed={shieldUsed}
+            onShieldPress={isPremium ? undefined : openPremium}
+          />
+        </FadeInView>
 
         {!isPremium && (
-          <View style={styles.section}>
+          <FadeInView delay={120} style={styles.section}>
             <PremiumBanner onPress={openPremium} />
-          </View>
+          </FadeInView>
         )}
 
-        <View style={styles.section}>
+        <FadeInView delay={180} style={styles.section}>
           <Text style={styles.sectionTitle}>¿Qué vas a estudiar?</Text>
           <SubjectPicker value={subjectId} onChange={setSubjectId} disabled={isRunning} />
-        </View>
+        </FadeInView>
 
-        <View style={styles.section}>
+        <FadeInView delay={240} style={styles.section}>
           <View style={styles.durations}>
             {POMODORO_DURATIONS.map((m) => {
               const locked = !isPremium && m !== DEFAULT_DURATION;
               const active = (isPremium ? minutes : DEFAULT_DURATION) === m;
               return (
-                <Pressable
+                <PressableScale
                   key={m}
+                  haptic="selection"
                   onPress={() => (locked ? openPremium() : chooseMinutes(m))}
+                  containerStyle={styles.durationItem}
                   style={[styles.durationChip, active && styles.durationChipActive]}
                   accessibilityLabel={`${m} minutos${locked ? ' (Premium)' : ''}`}
                 >
@@ -131,7 +184,7 @@ export default function HomeScreen() {
                     {locked ? '🔒 ' : ''}
                     {m}'
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -143,14 +196,14 @@ export default function HomeScreen() {
             setIsRunning={setIsRunning}
             onComplete={handleComplete}
           />
-        </View>
+        </FadeInView>
 
-        <View style={[styles.section, styles.statsRow]}>
-          <StatCard label="Hoy" value={formatMinutes(minutesToday)} accent />
-          <StatCard label="Esta semana" value={formatMinutes(minutesWeek)} accent />
-        </View>
+        <FadeInView delay={300} style={[styles.section, styles.statsRow]}>
+          <StatCard label="Hoy" number={minutesToday} format={formatMinutes} accent />
+          <StatCard label="Esta semana" number={minutesWeek} format={formatMinutes} accent />
+        </FadeInView>
 
-        <View style={styles.section}>
+        <FadeInView delay={360} style={styles.section}>
           <Text style={styles.sectionTitle}>Sesiones recientes</Text>
           {recentSessions.length === 0 ? (
             <Text style={styles.emptyText}>Aún no has completado ninguna sesión hoy.</Text>
@@ -165,11 +218,14 @@ export default function HomeScreen() {
               />
             ))
           )}
-        </View>
+        </FadeInView>
       </ScrollView>
 
-      <Modal visible={modalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
+      <Sheet
+        visible={modalVisible}
+        onClose={handleContinue}
+        overlay={modalVisible ? <Confetti /> : null}
+      >
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>¡Sesión completada! 🎉</Text>
             <Text style={styles.modalBody}>
@@ -183,20 +239,27 @@ export default function HomeScreen() {
               accessibilityLabel="Continuar"
             />
           </View>
-        </View>
-      </Modal>
+      </Sheet>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
+  durationItem: {
+    flex: 1,
+  },
   durations: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 10,
   },
   durationChip: {
-    flex: 1,
     paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: COLORS.white,
@@ -222,10 +285,10 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   greeting: {
+    flexShrink: 1,
     fontSize: 24,
     fontWeight: '700',
     color: COLORS.textPrimary,
-    marginBottom: 20,
   },
   section: {
     marginBottom: 16,
@@ -244,18 +307,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(18, 58, 54, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
   modalCard: {
-    width: '100%',
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 24,
     alignItems: 'center',
   },
   modalTitle: {

@@ -104,3 +104,34 @@ describe('heatmap', () => {
     assert.equal(lastWeek[3].future, true);
   });
 });
+
+describe('metas e informe semanal', async () => {
+  const { weekStartISO, weeklyGoalProgress, weeklyReport } = await import('../src/utils/stats.js');
+
+  test('la semana empieza el lunes', () => {
+    assert.equal(weekStartISO(now), '2026-10-26');
+    assert.equal(weekStartISO(new Date(2026, 10, 1)), '2026-10-26'); // domingo
+  });
+
+  test('progreso de metas solo cuenta esta semana y por materia', () => {
+    const data = [...sessions, s('2026-10-20', 50, '9:00 AM', 'calculo')];
+    const result = weeklyGoalProgress(data, { calculo: 100, fisica: 50, ingles: 0 }, now);
+    assert.deepEqual(
+      result.map((r) => [r.subjectId, r.minutes, r.done]),
+      [
+        ['fisica', 50, true],
+        ['calculo', 50, false],
+      ],
+    );
+    assert.equal(result[1].progress, 0.5);
+  });
+
+  test('informe de los últimos 7 días', () => {
+    const report = weeklyReport(sessions, now);
+    assert.equal(report.minutes, 125);
+    assert.equal(report.sessions, 4);
+    assert.equal(report.activeDays, 3);
+    assert.equal(report.topSubjectId, 'calculo');
+    assert.equal(report.to, '2026-10-28');
+  });
+});

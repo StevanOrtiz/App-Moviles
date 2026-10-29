@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import SecondaryButton from '../components/SecondaryButton';
 import ReminderItem from '../components/ReminderItem';
 import { useReminders } from '../context/RemindersContext';
+import { useSessions } from '../context/SessionsContext';
 import { MAX_REMINDERS } from '../services/reminderService';
 import { FREE_REMINDER_LIMIT, usePremium } from '../context/PremiumContext';
 import { sendTestNotification } from '../services/notificationService';
@@ -126,7 +127,8 @@ function PermissionCard({ permission, onEnable, onTest }) {
 }
 
 export default function RemindersScreen() {
-  const { isPremium, openPremium } = usePremium();
+  const { isPremium, openPremium, notifyPromo } = usePremium();
+  const { sessions } = useSessions();
   const {
     reminders,
     loading,
@@ -198,6 +200,11 @@ export default function RemindersScreen() {
 
   const limit = isPremium ? MAX_REMINDERS : FREE_REMINDER_LIMIT;
   const atLimit = reminders.length >= limit;
+
+  // Si llegó al tope del plan gratis, quizá mostrar la promo de más recordatorios
+  useEffect(() => {
+    if (atLimit && !isPremium) notifyPromo('reminder_limit', { sessionsCount: sessions.length });
+  }, [atLimit, isPremium, notifyPromo, sessions.length]);
 
   const header = (
     <View>

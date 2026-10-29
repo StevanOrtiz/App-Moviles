@@ -50,8 +50,16 @@ service cloud.firestore {
           'name', 'universityId', 'universityName',
           'totalMinutes', 'sessions', 'currentStreak', 'bestStreak',
           'lastSessionDate', 'lastSessionId', 'createdAt', 'updatedAt',
-          'subjectMinutes', 'premium', 'premiumSince'
+          'subjectMinutes', 'premium', 'premiumSince', 'goals'
         ]);
+      }
+
+      // Metas semanales por materia: { materia: minutos }, hasta 20 materias.
+      // Las reglas no pueden recorrer un map; los valores los valida la app (no afectan el ranking).
+      function isGoalsEdit() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['goals', 'updatedAt'])
+          && request.resource.data.goals is map
+          && request.resource.data.goals.size() <= 20;
       }
 
       // DEMO: Premium se activa desde el cliente. Cerrar esta regla cuando exista pasarela de pago.
@@ -119,6 +127,7 @@ service cloud.firestore {
         && request.resource.data.lastSessionId == null
         && !('premium' in request.resource.data)
         && !('subjectMinutes' in request.resource.data)
+        && !('goals' in request.resource.data)
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
@@ -126,7 +135,7 @@ service cloud.firestore {
         && keysOk(request.resource.data)
         && profileOk(request.resource.data)
         && request.resource.data.updatedAt == request.time
-        && (isProfileEdit() || isSessionUpdate(uid) || isPremiumToggle());
+        && (isProfileEdit() || isSessionUpdate(uid) || isPremiumToggle() || isGoalsEdit());
 
       allow delete: if isOwner(uid);
 

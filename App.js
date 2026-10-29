@@ -12,6 +12,8 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SessionsProvider } from './src/context/SessionsContext';
 import { PremiumProvider } from './src/context/PremiumContext';
 import PremiumScreen from './src/screens/PremiumScreen';
+import PromoSheet from './src/components/PromoSheet';
+import Toast from './src/components/Toast';
 import { RemindersProvider } from './src/context/RemindersContext';
 import { NotificationsProvider } from './src/context/NotificationsContext';
 import { navigationRef } from './src/navigation/navigationRef';
@@ -53,6 +55,8 @@ function RootNavigator() {
     <>
       <AppNavigator />
       <PremiumScreen />
+      <PromoSheet />
+      <Toast />
     </>
   );
 }

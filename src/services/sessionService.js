@@ -65,8 +65,12 @@ function commitSession(uid, profile, session, allSessions) {
       : {}),
     totalMinutes: increment(session.duration),
     sessions: increment(1),
-    currentStreak: getCurrentStreak(allSessions),
-    bestStreak: Math.max(getBestStreak(allSessions), profile.bestStreak || 0),
+    // Premium: el escudo de racha perdona un día perdido al mes
+    currentStreak: getCurrentStreak(allSessions, { shields: profile.premium === true }),
+    bestStreak: Math.max(
+      getBestStreak(allSessions, { shields: profile.premium === true }),
+      profile.bestStreak || 0,
+    ),
     lastSessionDate: lastDate,
     lastSessionId: session.id,
     updatedAt: serverTimestamp(),

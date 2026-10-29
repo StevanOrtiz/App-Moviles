@@ -18,6 +18,10 @@ import CreateProfileScreen from './CreateProfileScreen';
 import { useAuth } from '../context/AuthContext';
 import { useSessions } from '../context/SessionsContext';
 import { usePremium } from '../context/PremiumContext';
+import PressableScale from '../components/PressableScale';
+import PremiumBadge from '../components/PremiumBadge';
+import AnimatedNumber from '../components/AnimatedNumber';
+import FadeInView from '../components/FadeInView';
 import { useNotifications } from '../context/NotificationsContext';
 import { getCurrentStreak } from '../utils/streak';
 import { formatMinutes } from '../utils/formatTime';
@@ -26,11 +30,11 @@ import { getErrorMessage } from '../utils/authErrors';
 function Option({ icon, label, onPress, danger }) {
   const color = danger ? COLORS.error : COLORS.primary;
   return (
-    <Pressable style={styles.option} onPress={onPress} accessibilityLabel={label}>
+    <PressableScale style={styles.option} onPress={onPress} accessibilityLabel={label} scaleTo={0.98}>
       <Ionicons name={icon} size={20} color={color} />
       <Text style={[styles.optionText, danger && { color }]}>{label}</Text>
       <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -57,7 +61,7 @@ export default function ProfileScreen() {
   }
 
   const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
-  const streak = getCurrentStreak(sessions);
+  const streak = getCurrentStreak(sessions, { shields: isPremium });
   const initial = (user?.name || '?').trim().charAt(0).toUpperCase();
 
   const handleSignOut = () => {
@@ -98,24 +102,24 @@ export default function ProfileScreen() {
           <Text style={styles.avatarText}>{initial}</Text>
         </View>
 
-        <Text style={[styles.name, isPremium && { color: COLORS.gold }]}>
-          {isPremium ? '👑 ' : ''}
-          {user?.name}
-        </Text>
+        <FadeInView style={styles.nameRow}>
+          {isPremium && <PremiumBadge size={22} />}
+          <Text style={[styles.name, isPremium && { color: COLORS.gold }]}>{user?.name}</Text>
+        </FadeInView>
         <Text style={styles.university}>{user?.universityName}</Text>
         <Text style={styles.email}>{authUser?.email}</Text>
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>🔥 {streak}</Text>
+            <AnimatedNumber value={streak} format={(n) => `🔥 ${n}`} style={styles.statValue} />
             <Text style={styles.statLabel}>Racha</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>⏱ {formatMinutes(totalMinutes)}</Text>
+            <AnimatedNumber value={totalMinutes} format={(n) => `⏱ ${formatMinutes(n)}`} style={styles.statValue} />
             <Text style={styles.statLabel}>Tiempo total</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>📚 {sessions.length}</Text>
+            <AnimatedNumber value={sessions.length} format={(n) => `📚 ${n}`} style={styles.statValue} />
             <Text style={styles.statLabel}>Sesiones</Text>
           </View>
         </View>
@@ -224,6 +228,12 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,
